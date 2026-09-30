@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRbac } from '@/composables/useRbac'
+import { usePermissions } from '@/composables/usePermissions'
 import { useAuthStore } from '@/stores/authStore'
 import DashboardTabs from '@/components/dashboard/DashboardTabs.vue'
 import type { DashboardTab, DashboardTabKey } from '@/components/dashboard/DashboardTabs.vue'
@@ -11,7 +11,7 @@ import DashboardDeadlinesTab from '@/components/dashboard/DashboardDeadlinesTab.
 import DashboardFinancialsTab from '@/components/dashboard/DashboardFinancialsTab.vue'
 
 const { t } = useI18n()
-const { can } = useRbac()
+const { can } = usePermissions()
 const authStore = useAuthStore()
 
 // Each tab panel below owns its own store loading, guarded so a store
@@ -28,14 +28,15 @@ const authStore = useAuthStore()
 const activeTab = ref<DashboardTabKey>('projects')
 
 // Financials shows real company-wide revenue/collection figures, not
-// just this user's own projects -- restricted to Administrator (see
-// useRbac.ts's 'dashboard.financials' permission), same as the rest of
-// the app already restricts financial visibility (payments.view etc).
+// just this user's own projects -- gated on the same Reports:view
+// permission the /api/reports/financial-summary endpoint it loads
+// actually enforces (see backend/app/api/reports.py), so this tab only
+// ever appears for roles the server would actually serve it to.
 const TABS = computed<DashboardTab[]>(() => [
   { key: 'clients', label: t('dashboard.clientsTab') },
   { key: 'projects', label: t('dashboard.projectsTab') },
   { key: 'deadlines', label: t('dashboard.deadlinesTab') },
-  ...(can('dashboard.financials') ? [{ key: 'financials' as const, label: t('dashboard.financialsTab') }] : []),
+  ...(can('Reports', 'view') ? [{ key: 'financials' as const, label: t('dashboard.financialsTab') }] : []),
 ])
 
 // Browser-local time of day is fine for a greeting (unlike the
@@ -90,7 +91,7 @@ const avatarInitial = computed(() => authStore.user?.name.trim().charAt(0).toUpp
     <div v-else-if="activeTab === 'deadlines'" id="dashboard-tabpanel-deadlines" role="tabpanel" aria-labelledby="dashboard-tab-deadlines">
       <DashboardDeadlinesTab />
     </div>
-    <div v-else-if="activeTab === 'financials' && can('dashboard.financials')" id="dashboard-tabpanel-financials" role="tabpanel" aria-labelledby="dashboard-tab-financials">
+    <div v-else-if="activeTab === 'financials' && can('Reports', 'view')" id="dashboard-tabpanel-financials" role="tabpanel" aria-labelledby="dashboard-tab-financials">
       <DashboardFinancialsTab />
     </div>
   </div>

@@ -110,7 +110,7 @@ onMounted(loadDocumentsData)
       <div v-if="clientStore.isDetailLoading" class="rounded-xl border border-border-light bg-bg-card p-5">
         <SkeletonLoader :rows="3" />
       </div>
-      <ErrorState v-else-if="clientStore.detailError" :description="clientStore.detailError" />
+      <ErrorState v-else-if="clientStore.detailError" :description="clientStore.detailError" @retry="clientId && clientStore.loadClientDetail(clientId)" />
       <EmptyState
         v-else-if="customerIdDocuments.length === 0"
         :title="t('project.documentsTab.noIdentificationDocumentsTitle')"

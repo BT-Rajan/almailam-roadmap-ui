@@ -1,14 +1,20 @@
 import { onScopeDispose, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useAuthStore } from '@/stores/authStore'
+import { useLogoutCountdownStore } from '@/stores/logoutCountdownStore'
 import { lastSharedActivity, onRemoteLogout, recordActivity } from '@/utils/sessionSync'
 
-// 30 minutes of no mouse/keyboard/touch/scroll activity signs the user out,
+// 5 minutes of no mouse/keyboard/touch/scroll activity signs the user out,
 // even though the access token itself would otherwise keep silently
 // renewing via the refresh cookie for as long as the tab stays open.
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000
+
+// How long the full-screen "you were signed out" countdown stays up before
+// the redirect to the login screen actually happens.
+const LOGOUT_COUNTDOWN_START_SECONDS = 10
 
 // Listening on window in the capture phase catches activity anywhere in the
 // document, including inside iframes/portals that don't bubble normally.
@@ -26,7 +32,9 @@ const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchsta
  */
 export function useIdleLogout(): void {
   const authStore = useAuthStore()
+  const countdownStore = useLogoutCountdownStore()
   const router = useRouter()
+  const { t } = useI18n()
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined
 
@@ -35,6 +43,24 @@ export function useIdleLogout(): void {
       clearTimeout(timeoutId)
       timeoutId = undefined
     }
+  }
+
+  // Ticks the overlay (LogoutCountdownOverlay.vue) down to 1, one step per
+  // second, then hides it; resolves once the last second has elapsed.
+  function runLogoutCountdown(): Promise<void> {
+    return new Promise((resolve) => {
+      countdownStore.show(LOGOUT_COUNTDOWN_START_SECONDS)
+      const intervalId = setInterval(() => {
+        const next = countdownStore.secondsRemaining - 1
+        if (next < 1) {
+          clearInterval(intervalId)
+          countdownStore.hide()
+          resolve()
+          return
+        }
+        countdownStore.tick(next)
+      }, 1000)
+    })
   }
 
   async function handleIdleTimeout(): Promise<void> {
@@ -61,7 +87,8 @@ export function useIdleLogout(): void {
     // was landing some users on a login page that silently refused to
     // submit until they manually stripped it. The login route now
     // always stays the bare path.
-    authStore.logoutReason = 'You were signed out after 30 minutes of inactivity.'
+    authStore.logoutReason = t('auth.idleLogoutReason')
+    await runLogoutCountdown()
     await goToLogin()
   }
 

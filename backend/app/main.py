@@ -160,11 +160,10 @@ if _frontend_dist.is_dir():
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str) -> FileResponse:
         candidate = (_frontend_dist / full_path).resolve()
-        if (
-            full_path
-            and candidate.is_file()
-            and str(candidate).startswith(str(_frontend_dist))
-        ):
+        # is_relative_to, not a str.startswith prefix check: a bare string
+        # prefix has no path-separator boundary, so a sibling directory
+        # such as "dist-backup" would pass "...dist-backup".startswith("...dist").
+        if full_path and candidate.is_file() and candidate.is_relative_to(_frontend_dist):
             # Unhashed files served from the dist root (favicon, static
             # pages): revalidate rather than assume they never change.
             return FileResponse(candidate, headers={"Cache-Control": _REVALIDATE_CACHE_CONTROL})

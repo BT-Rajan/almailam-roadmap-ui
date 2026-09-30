@@ -44,10 +44,20 @@ function resetForm(): void {
   formError.value = undefined
 }
 
+// Mirrors the backend's own rejection (ChangePasswordRequest.not_trivial in
+// backend/app/schemas/auth.py): a password that's entirely letters or
+// entirely digits is rejected even past the length check. Checked here too
+// so that gets caught immediately instead of only after a round trip to
+// the server for the exact same rejection.
+function isTrivialPassword(value: string): boolean {
+  return /^\p{L}+$/u.test(value) || /^\p{Nd}+$/u.test(value)
+}
+
 const canSubmit = computed(
   () =>
     currentPassword.value.trim().length > 0 &&
     newPassword.value.length >= 8 &&
+    !isTrivialPassword(newPassword.value) &&
     confirmPassword.value.length > 0,
 )
 
@@ -61,6 +71,10 @@ async function submit(): Promise<void> {
 
   if (newPassword.value.length < 8) {
     formError.value = 'New password must be at least 8 characters.'
+    return
+  }
+  if (isTrivialPassword(newPassword.value)) {
+    formError.value = 'Password must mix letters, numbers, or symbols.'
     return
   }
   if (newPassword.value !== confirmPassword.value) {
@@ -99,6 +113,7 @@ async function submit(): Promise<void> {
         type="password"
         :label="t('auth.changePasswordDialog.newPassword')"
         :placeholder="t('auth.changePasswordDialog.newPasswordPlaceholder')"
+        :hint="t('auth.changePasswordDialog.newPasswordHint')"
         autocomplete="new-password"
         :icon="Lock"
         required

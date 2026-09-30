@@ -16,6 +16,12 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 
+# Ad-hoc manual E2E driver scripts and their screenshot output. These are
+# throwaway exploration artifacts, not a maintained test suite -- never let
+# them get swept into a build or deployed.
+/.e2e-drive*.mjs
+/e2e/testresult/
+
 # Backend runtime config/venv and generated PM2 ecosystem files
 # (produced by install.sh / test.sh on the target machine).
 /backend/.env

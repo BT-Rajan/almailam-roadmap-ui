@@ -14,7 +14,7 @@ const companyStore = useCompanyStore()
 const router = useRouter()
 const route = useRoute()
 
-// Set by useIdleLogout (30-minute inactivity auto-logout) when it bounces
+// Set by useIdleLogout (5-minute inactivity auto-logout) when it bounces
 // here -- without this, someone dropped back on the login screen mid-work
 // has no idea why and it looks like the app just broke. Read from
 // authStore (in-memory, one-shot -- see logoutReason's doc comment),

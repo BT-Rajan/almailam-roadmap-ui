@@ -390,7 +390,7 @@ export default {
     },
     addField: 'إضافة حقل',
     removeField: 'إزالة الحقل',
-    fieldTokenPlaceholder: 'الرمز (يطابق {{token}})',
+    fieldTokenPlaceholder: "الرمز (يطابق {'{'}{'{'}token{'}'}{'}'})",
     fieldLabelPlaceholder: 'تسمية الحقل',
     fieldOptionsPlaceholder: 'خيار واحد في كل سطر',
     sampleFormTitle: 'نموذج مرجعي',
