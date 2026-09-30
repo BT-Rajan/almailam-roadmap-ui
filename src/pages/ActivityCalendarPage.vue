@@ -20,7 +20,6 @@ import { projectService } from '@/services/projectService'
 import { useTaskStore } from '@/stores/taskStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { BadgeVariant } from '@/types/Ui'
-import type { Project } from '@/types/Project'
 import type { SelectOption } from '@/types/Ui'
 
 const router = useRouter()
@@ -114,10 +113,12 @@ async function loadFilterOptions() {
       // regular projects list (already scoped server-side to what this
       // user can see) rather than the admin-only filter endpoint. No user
       // dropdown at all: this page never shows anyone else's activity.
-      const page = await projectService.getProjectsPage({ pageSize: 200 })
+      // id + name only, every project (the old 200-record page silently
+      // dropped anything beyond it).
+      const options = await projectService.getProjectOptions()
       projectOptions.value = [
         { label: t('workspace.activityCalendarPage.allProjects'), value: '' },
-        ...page.items.map((p: Project) => ({ label: p.projectName, value: p.id })),
+        ...options.map((p) => ({ label: p.name, value: p.id })),
       ]
     }
   } catch (error) {
@@ -260,17 +261,11 @@ function closeDetailsPanel() {
 // editing status or creating a task behaves identically
 // wherever it's opened from.
 
-const tasksLoaded = ref(false)
-async function ensureTasksLoaded() {
-  if (tasksLoaded.value) return
-  await taskStore.loadTasks()
-  tasksLoaded.value = true
-}
-
 async function handleActivityClick(activity: ActivityRecord) {
   if (activity.entityType === EntityType.TASK) {
-    await ensureTasksLoaded()
-    if (taskStore.tasks.some((task) => task.id === activity.entityId)) {
+    // Just this one task -- not every task in the company.
+    const task = await taskStore.ensureTask(activity.entityId).catch(() => undefined)
+    if (task) {
       router.push({ name: ROUTE_NAMES.TASK_WORKSPACE, params: { taskId: activity.entityId } })
       return
     }

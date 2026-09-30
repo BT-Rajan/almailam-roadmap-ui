@@ -9,23 +9,20 @@ one request here instead: counts are SQL aggregates, lists are capped
 shows is resolved server-side.
 """
 
-from collections import defaultdict
 from datetime import timedelta
-from decimal import Decimal
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core import payment_calculations as calc
 from app.core.file_storage import format_file_size
 from app.core.kuwait_time import kuwait_today
 from app.models.client import Client
 from app.models.contract import Contract
 from app.models.document import ProjectDocument
-from app.models.payment import FinancialAgreement, PaymentObligation
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
+from app.services import payment_service
 
 # How many rows each list sends. The widgets page through these a few at
 # a time; anything beyond is one click away on the full page (Clients,
@@ -215,48 +212,24 @@ def deadlines_tab(db: Session) -> dict:
 
 def financials_tab(db: Session) -> dict:
     """Portfolio pending/overdue totals and the agreements with anything
-    overdue -- the same per-agreement rule the Payments page uses
-    (payment_calculations.get_financial_summary), computed from two
-    queries instead of shipping every agreement and instalment to the
-    browser."""
-    agreements = db.query(FinancialAgreement).all()
-    obligations_by_agreement: dict[int, list] = defaultdict(list)
-    for obligation in db.query(PaymentObligation).all():
-        obligations_by_agreement[obligation.agreement_id].append(obligation)
-
-    project_rows = (
-        db.query(Project.id, Project.project_no, Project.project_name, Client.company_name)
-        .outerjoin(Client, Client.id == Project.client_id)
-        .filter(Project.id.in_({a.project_id for a in agreements}))
-        .all()
-        if agreements
-        else []
-    )
-    projects = {row[0]: (row[1], row[2], row[3] or "") for row in project_rows}
-
-    total_pending = Decimal("0")
-    total_overdue = Decimal("0")
-    overdue_agreements = []
-    for agreement in agreements:
-        summary = calc.get_financial_summary(agreement, obligations_by_agreement.get(agreement.id, []))
-        pending = Decimal(str(summary["totalPending"]))
-        overdue = Decimal(str(summary["totalOverdue"]))
-        total_pending += pending
-        total_overdue += overdue
-        if overdue > 0:
-            project_no, project_name, client_name = projects.get(agreement.project_id, ("", "", ""))
-            overdue_agreements.append({
-                "id": str(agreement.id),
-                "projectId": project_no,
-                "project": project_name,
-                "client": client_name,
-                "overdueAmount": float(overdue),
-                "currency": agreement.currency,
-            })
-
+    overdue -- computed by payment_service.agreements_overview, the same
+    source the Payments page uses, so the two always agree."""
+    overview = payment_service.agreements_overview(db)
+    overdue_agreements = [
+        {
+            "id": row["id"],
+            "projectId": row["projectId"],
+            "project": row["projectName"],
+            "client": row["clientName"],
+            "overdueAmount": row["totalOverdue"],
+            "currency": row["currency"],
+        }
+        for row in overview["rows"]
+        if row["totalOverdue"] > 0
+    ]
     overdue_agreements.sort(key=lambda row: row["overdueAmount"], reverse=True)
     return {
-        "totalPending": float(total_pending),
-        "totalOverdue": float(total_overdue),
+        "totalPending": overview["totals"]["totalPending"],
+        "totalOverdue": overview["totals"]["totalOverdue"],
         "overdueAgreements": overdue_agreements,
     }

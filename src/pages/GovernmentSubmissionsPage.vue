@@ -100,7 +100,7 @@ const tableRows = computed<SubmissionTableRow[]>(() =>
   submissionStore.filteredSubmissions.map((submission) => ({
     id: submission.id,
     submissionNo: submission.submissionNo,
-    projectName: submissionStore.getProjectById(submission.projectId)?.projectName ?? t('government.unknownProject'),
+    projectName: submission.projectName || submissionStore.getProjectById(submission.projectId)?.projectName || t('government.unknownProject'),
     authorityName: submissionStore.getAuthorityById(submission.authorityId)?.name ?? t('government.unknownAuthority'),
     formTitle: submissionStore.getFormById(submission.formId)?.title ?? t('government.unknownForm'),
     stage: submission.stage,

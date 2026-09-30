@@ -65,14 +65,11 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
 
     filteredSubmissions(state): GovernmentSubmission[] {
       const term = state.searchTerm.trim().toLowerCase()
-      const projectStore = useProjectStore()
-
       return state.submissions.filter((submission) => {
-        const project = projectStore.getProjectById(submission.projectId)
         const matchesSearch =
           term.length === 0 ||
           submission.submissionNo.toLowerCase().includes(term) ||
-          (project?.projectName.toLowerCase().includes(term) ?? false)
+          (submission.projectName ?? '').toLowerCase().includes(term)
 
         const matchesStage = state.stageFilter === 'All' || submission.stage === state.stageFilter
         const matchesAuthority = state.authorityFilter === 'All' || submission.authorityId === state.authorityFilter
@@ -123,10 +120,10 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
       this.isFullLoading = true
       this.error = undefined
       try {
-        const projectStore = useProjectStore()
-        const [submissions, , authorities, forms] = await Promise.all([
+        // Each application carries its project's name -- no need to
+        // download every project just to label and search the rows.
+        const [submissions, authorities, forms] = await Promise.all([
           governmentSubmissionService.getSubmissions(),
-          !projectStore.isFullyLoaded ? projectStore.loadProjects() : Promise.resolve(),
           governmentFormService.getAuthorities(),
           governmentFormService.getForms(),
         ])
@@ -217,6 +214,19 @@ export const useGovernmentSubmissionStore = defineStore('governmentSubmission', 
     // Loads a single submission by number into the store's list, for the
     // full-screen workspace page (deep link / refresh, where the list may
     // not be populated yet).
+    // Just the (small) authorities and forms catalogues -- what a new
+    // application form needs -- without downloading every application.
+    async loadCatalogs() {
+      this.error = undefined
+      try {
+        const [authorities, forms] = await Promise.all([governmentFormService.getAuthorities(), governmentFormService.getForms()])
+        this.authorities = authorities
+        this.forms = forms
+      } catch (error) {
+        this.error = describeStoreError('Unable to load authorities and forms. Please try again.', error)
+      }
+    },
+
     // Fetches just this one application (plus the small authorities/forms
     // catalogues if missing) -- never every application in the company.
     async loadSubmissionByNo(submissionNo: string): Promise<GovernmentSubmission | undefined> {

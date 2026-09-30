@@ -27,9 +27,14 @@ class DocumentOut(BaseModel):
     originalFilename: str | None
     externalLink: str | None
     sourceFormId: str | None = None
+    # Display name, so document lists can label rows without the client
+    # downloading every project to look it up.
+    projectName: str = ""
 
     @staticmethod
-    def from_model(document, project_no: str, uploaded_by_name: str, file_size_display: str | None) -> "DocumentOut":
+    def from_model(
+        document, project_no: str, uploaded_by_name: str, file_size_display: str | None, project_name: str = "",
+    ) -> "DocumentOut":
         return DocumentOut(
             id=document.document_no,
             projectId=project_no,
@@ -43,6 +48,7 @@ class DocumentOut(BaseModel):
             originalFilename=document.original_filename,
             externalLink=document.external_link,
             sourceFormId=f"FORM-{document.source_form_id:03d}" if document.source_form_id else None,
+            projectName=project_name,
         )
 
 

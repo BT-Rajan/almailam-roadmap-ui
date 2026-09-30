@@ -213,6 +213,10 @@ class ProjectOut(BaseModel):
     handoverPaymentConfirmedBy: str | None = None
     handoverNotes: str | None = None
 
+    # Display name, so project lists/cards can show the client without the
+    # client downloading every client in the company.
+    clientName: str = ""
+
     @staticmethod
     def from_model(
         project, engineer_name: str, selected_activities: list | None = None,

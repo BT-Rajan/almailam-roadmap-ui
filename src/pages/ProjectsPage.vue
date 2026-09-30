@@ -82,7 +82,7 @@ const tableRows = computed<ProjectTableRow[]>(() =>
     id: project.id,
     projectNo: project.projectNo,
     projectName: project.projectName,
-    clientName: projectStore.getClientById(project.clientId)?.companyName ?? t('project.unknownClient'),
+    clientName: project.clientName || projectStore.getClientById(project.clientId)?.companyName || t('project.unknownClient'),
     currentStage: project.currentStage,
     status: project.status,
     progress: project.progress,
@@ -236,7 +236,7 @@ async function restoreProject(projectId: string, name: string): Promise<void> {
           >
             <div class="flex flex-col gap-0.5">
               <p class="text-xs font-medium uppercase tracking-wide text-text-muted">
-                {{ project.projectNo }} · {{ projectStore.getClientById(project.clientId)?.companyName ?? t('project.unknownClient') }}
+                {{ project.projectNo }} · {{ project.clientName || projectStore.getClientById(project.clientId)?.companyName || t('project.unknownClient') }}
               </p>
               <p class="text-sm font-semibold text-text-primary">{{ project.projectName }}</p>
             </div>

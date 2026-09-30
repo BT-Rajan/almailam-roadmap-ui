@@ -24,17 +24,22 @@ can_edit = require_permission("Documents", "edit")
 can_delete = require_permission("Documents", "delete")
 
 
-def _project_no(db: Session, project_id: int) -> str:
-    project = db.query(Project).filter(Project.id == project_id).first()
-    return project.project_no if project else ""
+def _projects(db: Session, project_ids: set[int]) -> dict[int, tuple[str, str]]:
+    """project id -> (project_no, project_name), one query for the batch."""
+    if not project_ids:
+        return {}
+    rows = db.query(Project.id, Project.project_no, Project.project_name).filter(Project.id.in_(project_ids)).all()
+    return {row[0]: (row[1], row[2]) for row in rows}
 
 
 def _document_out(db: Session, document) -> DocumentOut:
+    project_no, project_name = _projects(db, {document.project_id}).get(document.project_id, ("", ""))
     return DocumentOut.from_model(
         document,
-        _project_no(db, document.project_id),
+        project_no,
         document_service.user_name(db, document.uploaded_by),
         format_file_size(document.file_size_bytes) if document.file_size_bytes is not None else None,
+        project_name,
     )
 
 
@@ -53,10 +58,7 @@ def list_documents(
     result = document_service.list_documents(db, projectId, status, type, search, sort, page, pageSize)
     documents = result["items"]
 
-    project_ids = {d.project_id for d in documents}
-    project_nos = {
-        p.id: p.project_no for p in db.query(Project).filter(Project.id.in_(project_ids)).all()
-    } if project_ids else {}
+    projects = _projects(db, {d.project_id for d in documents})
 
     uploader_ids = {d.uploaded_by for d in documents}
     uploader_names = {
@@ -66,9 +68,10 @@ def list_documents(
     result["items"] = [
         DocumentOut.from_model(
             d,
-            project_nos.get(d.project_id, ""),
+            projects.get(d.project_id, ("", ""))[0],
             uploader_names.get(d.uploaded_by, "Unknown"),
             format_file_size(d.file_size_bytes) if d.file_size_bytes is not None else None,
+            projects.get(d.project_id, ("", ""))[1],
         )
         for d in documents
     ]

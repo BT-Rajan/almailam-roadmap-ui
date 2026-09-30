@@ -55,6 +55,23 @@ async function getProjectsPage(
  * reference lookups like resolving a project's name elsewhere in the app --
  * don't have to change.
  */
+/**
+ * Just id + name of every live project -- for filter/picker dropdowns,
+ * instead of downloading every full project record to fill a <select>.
+ */
+async function getProjectOptions(): Promise<{ id: string; name: string }[]> {
+  try {
+    return await apiClient.get<{ id: string; name: string }[]>('/api/projects/options')
+  } catch (error) {
+    throw asError(error, 'Failed to fetch projects')
+  }
+}
+
+/** Every project a user is the engineer of (server-side filter), all pages. */
+async function getProjectsForEngineer(engineerId: string): Promise<Project[]> {
+  return fetchAllPages<Project>((page, pageSize) => getProjectsPage({ engineerId, page, pageSize }))
+}
+
 /** Every project of one client (server-side filter), all pages. */
 async function getProjectsForClient(clientId: string): Promise<Project[]> {
   return fetchAllPages<Project>((page, pageSize) => getProjectsPage({ clientId, page, pageSize }))
@@ -457,6 +474,8 @@ async function updateHandoverNotes(projectId: string, notes: string): Promise<Pr
 
 export const projectService = {
   getProjectsForClient,
+  getProjectsForEngineer,
+  getProjectOptions,
   getProjects,
   getProjectsPage,
   getProjectById,

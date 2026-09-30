@@ -6,6 +6,8 @@ from app.api.deps import require_permission
 from app.core.database import get_db
 from app.core.exceptions import ValidationAppError
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.models.client import Client
+from app.models.project import Project
 from app.models.user import User
 from app.schemas.common import PagedResponse
 from app.schemas.document_requirement import ChecklistItemOut, SetChecklistItemRequest
@@ -49,11 +51,14 @@ def _project_out(db: Session, project, engineer_name: str) -> ProjectOut:
     if project.handover_payment_confirmed_by:
         confirmer = db.query(User).filter(User.id == project.handover_payment_confirmed_by).first()
         handover_payment_confirmed_by_name = confirmer.full_name if confirmer else None
-    return ProjectOut.from_model(
+    out = ProjectOut.from_model(
         project, engineer_name, activities, supervision_activities, includes_design, includes_supervision, permits,
         includes_government_submission=includes_government_submission,
         handover_payment_confirmed_by_name=handover_payment_confirmed_by_name,
     )
+    client = db.query(Client.company_name).filter(Client.id == project.client_id).first()
+    out.clientName = client[0] if client else ""
+    return out
 
 
 def _scope_of_work_out(db: Session, project) -> ScopeOfWorkOut:
@@ -89,6 +94,8 @@ def list_projects(
     permits_by_project = project_service.get_selected_permits_batch(db, {p.id for p in result["items"]})
     confirmed_by_ids = {p.handover_payment_confirmed_by for p in result["items"] if p.handover_payment_confirmed_by}
     confirmed_by_names = project_service.engineer_names(db, confirmed_by_ids)
+    client_ids = {p.client_id for p in result["items"]}
+    client_names = dict(db.query(Client.id, Client.company_name).filter(Client.id.in_(client_ids)).all()) if client_ids else {}
 
     def _out(p) -> ProjectOut:
         activities = activities_by_project.get(p.id, [])
@@ -97,15 +104,32 @@ def list_projects(
         includes_design, includes_government_submission, includes_supervision = project_service.compute_stage_flags(
             activities, supervision_activities, permits,
         )
-        return ProjectOut.from_model(
+        out = ProjectOut.from_model(
             p, names.get(p.engineer_id, "Unknown"), activities, supervision_activities,
             includes_design, includes_supervision, permits,
             includes_government_submission=includes_government_submission,
             handover_payment_confirmed_by_name=confirmed_by_names.get(p.handover_payment_confirmed_by),
         )
+        out.clientName = client_names.get(p.client_id, "")
+        return out
 
     result["items"] = [_out(p) for p in result["items"]]
     return result
+
+
+@router.get("/options")
+def list_project_options(db: Session = Depends(get_db), _=Depends(can_view)) -> list[dict]:
+    """Just id + name of every live project, for filter/picker dropdowns
+    (Task Board, Documents, Payments, ...) -- instead of the client
+    downloading every full project record to fill one <select>. Declared
+    before /{project_no} so "options" isn't taken as a project number."""
+    rows = (
+        db.query(Project.project_no, Project.project_name)
+        .filter(Project.deleted_at.is_(None))
+        .order_by(Project.project_name.asc())
+        .all()
+    )
+    return [{"id": project_no, "name": name} for project_no, name in rows]
 
 
 @router.get("/{project_no}", response_model=ProjectOut)

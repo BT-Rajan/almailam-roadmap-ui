@@ -20,7 +20,7 @@ import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useLocale } from '@/composables/useLocale'
 import { ROUTE_NAMES } from '@/constants/routeNames'
-import { useProjectStore } from '@/stores/projectStore'
+import { projectService } from '@/services/projectService'
 import { useScheduledReportStore } from '@/stores/scheduledReportStore'
 import { useToastStore } from '@/stores/toastStore'
 import { todayIso } from '@/utils/dateFormatter'
@@ -44,7 +44,6 @@ const router = useRouter()
 const { t } = useI18n()
 const { isRtl } = useLocale()
 const scheduledReportStore = useScheduledReportStore()
-const projectStore = useProjectStore()
 const toastStore = useToastStore()
 
 const backIcon = computed(() => (isRtl.value ? ArrowRight : ArrowLeft))
@@ -56,7 +55,8 @@ const isLoading = ref(true)
 async function loadData(): Promise<void> {
   isLoading.value = true
   if (scheduledReportStore.schedules.length === 0) await scheduledReportStore.loadSchedules()
-  if (!projectStore.isFullyLoaded) await projectStore.loadProjects()
+  // id + name only, for the project picker -- not every full project record.
+  projectChoices.value = await projectService.getProjectOptions().catch(() => [])
   isLoading.value = false
 }
 onMounted(loadData)
@@ -101,8 +101,9 @@ const WEEKDAY_OPTIONS: SelectOption[] = [
   { label: 'Sunday', value: '6', labelKey: 'administration.scheduledReportsPage.weekdaySunday' },
 ]
 
+const projectChoices = ref<{ id: string; name: string }[]>([])
 const projectOptions = computed<SelectOption[]>(() =>
-  projectStore.projects.map((project) => ({ label: `${project.projectNo} — ${project.projectName}`, value: project.projectNo })),
+  projectChoices.value.map((project) => ({ label: `${project.id} — ${project.name}`, value: project.id })),
 )
 
 function blankForm(): ScheduledReportInput {

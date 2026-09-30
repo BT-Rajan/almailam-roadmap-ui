@@ -115,7 +115,7 @@ const logRows = computed<LogTableRow[]>(() =>
     companyName: store.getClientById(entry.clientId)?.companyName ?? t('workspace.messageCentrePage.unknownCustomer'),
     channel: entry.channel,
     templateName: entry.subject || store.templates.find((template) => template.id === entry.templateId)?.name || t('workspace.messageCentrePage.customMessage'),
-    projectName: entry.projectId ? (store.getProjectById(entry.projectId)?.projectName ?? '—') : '—',
+    projectName: entry.projectId ? (entry.projectName || store.getProjectById(entry.projectId)?.projectName || '—') : '—',
     attachmentCount: entry.attachments.length,
     status: entry.status,
     sentAt: formatDateTime(entry.sentAt),
@@ -165,18 +165,23 @@ function resetComposeFields(): void {
   attachments.value = []
 }
 
-function openCompose(row: ClientTableRow): void {
+// Opens the compose form for a client and fetches just that client's
+// projects for the "related project". A client with exactly one project
+// has an unambiguous answer to "which project is this about" -- it's
+// picked automatically so the subject line is already filled in.
+async function startCompose(clientId: string): Promise<void> {
   resetComposeFields()
-  store.openCompose(row.id)
-  // A customer with exactly one project has an unambiguous answer to
-  // "which project is this email about" -- pick it automatically so
-  // the subject line is already filled in when the modal opens,
-  // instead of making staff pick from a list of one.
-  const projects = store.getProjectsForClient(row.id)
-  if (projects.length === 1) {
+  store.openCompose(clientId)
+  await store.loadProjectsForClient(clientId)
+  const projects = store.getProjectsForClient(clientId)
+  if (projects.length === 1 && store.selectedClientId === clientId && !projectId.value) {
     projectId.value = projects[0].id
     applyDefaultSubject()
   }
+}
+
+function openCompose(row: ClientTableRow): void {
+  void startCompose(row.id)
 }
 
 function closeCompose(): void {
@@ -273,13 +278,7 @@ onMounted(() => {
 
   const queryClientId = route.query.clientId
   if (typeof queryClientId === 'string' && queryClientId.length > 0) {
-    resetComposeFields()
-    store.openCompose(queryClientId)
-    const projects = store.getProjectsForClient(queryClientId)
-    if (projects.length === 1) {
-      projectId.value = projects[0].id
-      applyDefaultSubject()
-    }
+    void startCompose(queryClientId)
   }
 })
 </script>

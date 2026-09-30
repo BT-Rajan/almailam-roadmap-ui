@@ -133,10 +133,8 @@ export const useProjectStore = defineStore('project', {
       this.isPageLoading = true
       this.error = undefined
       try {
-        const clientStore = useClientStore()
-        if (!clientStore.isFullyLoaded) {
-          await clientStore.loadClients()
-        }
+        // Each project carries its client's name -- no need to download
+        // every client to label the cards/rows.
         const authStore = useAuthStore()
         const result = await projectService.getProjectsPage({
           page: this.pagination.page,
@@ -224,8 +222,9 @@ export const useProjectStore = defineStore('project', {
     // Shared by updateProject/setStage/addServices/setStatus/refreshProject below --
     // all patch the same project into both caches after a mutating call succeeds.
     patchProjectInCache(projectId: string, updated: Project): void {
-      this.projects = this.projects.map((p) => (p.id === projectId ? updated : p))
-      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? updated : p))
+      const keepName = (p: Project): Project => ({ ...updated, clientName: updated.clientName || p.clientName })
+      this.projects = this.projects.map((p) => (p.id === projectId ? keepName(p) : p))
+      this.pageItems = this.pageItems.map((p) => (p.id === projectId ? keepName(p) : p))
     },
 
     async updateProject(projectId: string, input: ProjectUpdateInput): Promise<Project> {

@@ -1133,3 +1133,57 @@ def check_and_notify_payment_reminders(db: Session, today: date | None = None) -
 
     db.commit()
     return notified_count
+
+
+def agreements_overview(db: Session) -> dict:
+    """Every agreement with its balances already worked out, plus the
+    portfolio totals -- what the Payments page and the dashboard's
+    Financials tab show. Uses the same per-agreement rule as everywhere
+    else (payment_calculations.get_financial_summary, obligations-based
+    received), from three queries in total, so the browser never has to
+    download every instalment, project and client to add them up."""
+    from collections import defaultdict
+
+    agreements = db.query(FinancialAgreement).order_by(FinancialAgreement.id.asc()).all()
+    obligations_by_agreement: dict[int, list] = defaultdict(list)
+    for obligation in db.query(PaymentObligation).all():
+        obligations_by_agreement[obligation.agreement_id].append(obligation)
+    project_rows = (
+        db.query(Project.id, Project.project_no, Project.project_name, Client.company_name)
+        .outerjoin(Client, Client.id == Project.client_id)
+        .filter(Project.id.in_({a.project_id for a in agreements}))
+        .all()
+        if agreements
+        else []
+    )
+    projects = {row[0]: (row[1], row[2], row[3] or "") for row in project_rows}
+
+    totals = {key: Decimal("0") for key in ("contractAmount", "totalReceived", "totalPending", "totalOverdue")}
+    rows = []
+    for agreement in agreements:
+        summary = calc.get_financial_summary(agreement, obligations_by_agreement.get(agreement.id, []))
+        for key in totals:
+            totals[key] += Decimal(str(summary[key]))
+        next_obligation = summary["nextPaymentObligation"]
+        project_no, project_name, client_name = projects.get(agreement.project_id, ("", "", ""))
+        rows.append({
+            "id": str(agreement.id),
+            "projectId": project_no,
+            "projectName": project_name,
+            "clientName": client_name,
+            "stream": agreement.stream,
+            "currency": agreement.currency,
+            "contractAmount": float(summary["contractAmount"]),
+            "totalReceived": float(summary["totalReceived"]),
+            "totalPending": float(summary["totalPending"]),
+            "totalOverdue": float(summary["totalOverdue"]),
+            "nextPaymentAmount": (
+                float(Decimal(str(next_obligation.amount_due)) - Decimal(str(next_obligation.amount_received)))
+                if next_obligation is not None
+                else None
+            ),
+            "nextPaymentDueDate": next_obligation.due_date.isoformat() if next_obligation is not None else None,
+            "nextPaymentIsOverdue": bool(summary["nextPaymentIsOverdue"]),
+        })
+    return {"totals": {key: float(value) for key, value in totals.items()}, "rows": rows}
+

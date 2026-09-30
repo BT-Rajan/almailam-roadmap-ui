@@ -130,6 +130,14 @@ def create_agreement(
     return _agreement_out(db, agreement)
 
 
+@router.get("/financial-agreements/overview")
+def agreements_overview(db: Session = Depends(get_db), _=Depends(can_view)) -> dict:
+    """Every agreement with balances computed server-side + portfolio
+    totals, for the Payments page (see payment_service.agreements_overview).
+    Declared before /{agreement_id} so "overview" isn't taken as an id."""
+    return payment_service.agreements_overview(db)
+
+
 @router.get("/financial-agreements/{agreement_id}", response_model=FinancialAgreementOut)
 def get_agreement(agreement_id: str, db: Session = Depends(get_db), _=Depends(can_view)):
     agreement = payment_service.get_agreement(db, payment_service.parse_agreement_id(agreement_id))

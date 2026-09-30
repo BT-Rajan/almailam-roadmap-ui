@@ -22,14 +22,31 @@ interface TaskStoreState {
   isLoading: boolean
   error: string | undefined
   searchTerm: string
+  // Task Board filters -- applied by the server (project number / user
+  // id), not to a downloaded list.
   projectFilter: string | 'All'
   assigneeFilter: string | 'All'
+  // Task Board: each status column is its own server page (newest data,
+  // bounded), not a slice of every task ever created. Kept apart from
+  // `tasks` (the per-project/per-user cache) so a filtered board can
+  // never pass for a project's full task list.
+  board: Record<TaskStatus, Task[]>
+  boardTotals: Record<TaskStatus, number>
+  boardPages: Record<TaskStatus, number>
+  isBoardLoading: boolean
   // One task's own history (status changes, reassignment, schedule
   // edits, notes -- see TaskHistoryPanel.vue), keyed by task id. Same
   // shape/loading pattern as statusReportStore.taskReports.
   auditEventsByTask: Record<string, TaskAuditEvent[]>
   isHistoryLoading: boolean
   historyError: string | undefined
+}
+
+const BOARD_STATUSES: TaskStatus[] = ['Preset', 'Pending', 'In Progress', 'Completed']
+const BOARD_PAGE_SIZE = 30
+
+function emptyBoard(): Record<TaskStatus, Task[]> {
+  return { Preset: [], Pending: [], 'In Progress': [], Completed: [] }
 }
 
 export const useTaskStore = defineStore('task', {
@@ -42,6 +59,10 @@ export const useTaskStore = defineStore('task', {
     searchTerm: '',
     projectFilter: 'All',
     assigneeFilter: 'All',
+    board: emptyBoard(),
+    boardTotals: { Preset: 0, Pending: 0, 'In Progress': 0, Completed: 0 },
+    boardPages: { Preset: 0, Pending: 0, 'In Progress': 0, Completed: 0 },
+    isBoardLoading: false,
     auditEventsByTask: {},
     isHistoryLoading: false,
     historyError: undefined,
@@ -78,32 +99,12 @@ export const useTaskStore = defineStore('task', {
       }
     },
 
-    filteredTasks(state): Task[] {
-      const term = state.searchTerm.trim().toLowerCase()
-
-      return state.tasks.filter((task) => {
-        const matchesSearch = term.length === 0 || task.title.toLowerCase().includes(term)
-        const matchesProject = state.projectFilter === 'All' || task.projectId === state.projectFilter
-        const matchesAssignee = state.assigneeFilter === 'All' || task.assignedTo === state.assigneeFilter
-
-        return matchesSearch && matchesProject && matchesAssignee
-      })
-    },
-
     hasActiveFilters(state): boolean {
-      return (
-        state.searchTerm.trim().length > 0 ||
-        state.projectFilter !== 'All' ||
-        state.assigneeFilter !== 'All'
-      )
+      return state.projectFilter !== 'All' || state.assigneeFilter !== 'All'
     },
 
-    tasksByStatus(): Record<TaskStatus, Task[]> {
-      const board = { Preset: [], Pending: [], 'In Progress': [], Completed: [] } as Record<TaskStatus, Task[]>
-      for (const task of this.filteredTasks) {
-        board[task.status].push(task)
-      }
-      return board
+    tasksByStatus(state): Record<TaskStatus, Task[]> {
+      return state.board
     },
 
     myTasks(state): Task[] {
@@ -212,27 +213,27 @@ export const useTaskStore = defineStore('task', {
 
     async updateTaskTitle(taskId: string, title: string) {
       const updated = await taskService.updateTask(taskId, { title })
-      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+      this._patchTask(updated)
     },
 
     async updateTaskStatus(taskId: string, status: TaskStatus, reason?: string) {
       const updated = await taskService.updateTask(taskId, { status, reason })
-      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+      this._patchTask(updated)
     },
 
     async updateTaskStartDate(taskId: string, startDate: string) {
       const updated = await taskService.updateTask(taskId, { startDate })
-      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+      this._patchTask(updated)
     },
 
     async updateTaskDueDate(taskId: string, dueDate: string) {
       const updated = await taskService.updateTask(taskId, { dueDate })
-      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+      this._patchTask(updated)
     },
 
     async updateTaskDueTime(taskId: string, dueTime: string) {
       const updated = await taskService.updateTask(taskId, { dueTime })
-      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+      this._patchTask(updated)
     },
 
     // Takes a real user id (e.g. "USR-004"), not a display name --
@@ -242,7 +243,69 @@ export const useTaskStore = defineStore('task', {
     // were sending a name from a hardcoded fake team list instead).
     async updateTaskAssignee(taskId: string, assignedToUserId: string) {
       const updated = await taskService.updateTask(taskId, { assignedTo: assignedToUserId })
-      this.tasks = this.tasks.map((task) => (task.id === taskId ? updated : task))
+      this._patchTask(updated)
+    },
+
+    // Puts an updated task back everywhere it's shown: the per-project/user
+    // cache and, if it's on the Task Board, its (possibly new) column.
+    _patchTask(updated: Task) {
+      this.tasks = this.tasks.map((task) => (task.id === updated.id ? updated : task))
+      const from = BOARD_STATUSES.find((status) => this.board[status].some((task) => task.id === updated.id))
+      if (!from) return
+      if (from === updated.status) {
+        this.board[from] = this.board[from].map((task) => (task.id === updated.id ? updated : task))
+        return
+      }
+      this.board[from] = this.board[from].filter((task) => task.id !== updated.id)
+      this.board[updated.status] = [updated, ...this.board[updated.status]]
+      this.boardTotals[from] = Math.max(0, this.boardTotals[from] - 1)
+      this.boardTotals[updated.status] += 1
+    },
+
+    // Task Board: the first page of every status column, filtered by the
+    // server. Completed shows the most recently due first; open columns
+    // the soonest due.
+    async loadBoard() {
+      this.isBoardLoading = true
+      this.error = undefined
+      try {
+        const pages = await Promise.all(BOARD_STATUSES.map((status) => this._fetchBoardPage(status, 1)))
+        const board = emptyBoard()
+        BOARD_STATUSES.forEach((status, index) => {
+          board[status] = pages[index].items
+          this.boardTotals[status] = pages[index].total
+          this.boardPages[status] = 1
+        })
+        this.board = board
+      } catch (error) {
+        this.error = describeStoreError('Unable to load tasks. Please try again.', error)
+      } finally {
+        this.isBoardLoading = false
+      }
+    },
+
+    // The next page of one Task Board column.
+    async loadMoreBoard(status: TaskStatus) {
+      try {
+        const next = await this._fetchBoardPage(status, this.boardPages[status] + 1)
+        const seen = new Set(this.board[status].map((task) => task.id))
+        this.board[status] = [...this.board[status], ...next.items.filter((task) => !seen.has(task.id))]
+        this.boardTotals[status] = next.total
+        this.boardPages[status] += 1
+      } catch (error) {
+        this.error = describeStoreError('Unable to load tasks. Please try again.', error)
+      }
+    },
+
+    _fetchBoardPage(status: TaskStatus, page: number) {
+      return taskService.getTasksPage({
+        status,
+        projectId: this.projectFilter !== 'All' ? this.projectFilter : undefined,
+        assignedTo: this.assigneeFilter !== 'All' ? this.assigneeFilter : undefined,
+        sort: status === 'Completed' ? '-dueDate' : 'dueDate',
+        page,
+        pageSize: BOARD_PAGE_SIZE,
+      })
     },
 
     async createTask(input: TaskInput): Promise<Task> {
@@ -254,6 +317,12 @@ export const useTaskStore = defineStore('task', {
     async deleteTask(taskId: string): Promise<void> {
       await taskService.deleteTask(taskId)
       this.tasks = this.tasks.filter((task) => task.id !== taskId)
+      for (const status of BOARD_STATUSES) {
+        if (this.board[status].some((task) => task.id === taskId)) {
+          this.board[status] = this.board[status].filter((task) => task.id !== taskId)
+          this.boardTotals[status] = Math.max(0, this.boardTotals[status] - 1)
+        }
+      }
     },
 
     async loadAuditEvents(taskId: string) {
@@ -278,16 +347,20 @@ export const useTaskStore = defineStore('task', {
 
     setProjectFilter(projectId: string | 'All') {
       this.projectFilter = projectId
+      void this.loadBoard()
     },
 
-    setAssigneeFilter(assignee: string | 'All') {
-      this.assigneeFilter = assignee
+    // A user id (the server filters on it), not a display name.
+    setAssigneeFilter(assigneeUserId: string | 'All') {
+      this.assigneeFilter = assigneeUserId
+      void this.loadBoard()
     },
 
     clearFilters() {
       this.searchTerm = ''
       this.projectFilter = 'All'
       this.assigneeFilter = 'All'
+      void this.loadBoard()
     },
   },
 })

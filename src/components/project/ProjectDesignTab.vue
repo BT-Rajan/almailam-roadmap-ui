@@ -248,7 +248,7 @@ async function toggleChecklistItem(activityId: string, item: ChecklistItem, fulf
     </BaseButton>
   </div>
 
-  <ErrorState v-if="documentStore.error" :description="documentStore.error" @retry="documentStore.loadDocuments" />
+  <ErrorState v-if="documentStore.error" :description="documentStore.error" @retry="documentStore.loadDocumentsForProject(project.id, { force: true })" />
 
   <SmartTable
     v-else
