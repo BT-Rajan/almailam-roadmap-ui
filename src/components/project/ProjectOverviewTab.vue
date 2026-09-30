@@ -11,14 +11,13 @@ import DetailPanel from '@/components/common/DetailPanel.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import PaginatedList from '@/components/common/PaginatedList.vue'
-import TablePagination from '@/components/common/TablePagination.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import FillGovernmentFormDialog from '@/components/government/FillGovernmentFormDialog.vue'
 import HandoverCard from '@/components/project/HandoverCard.vue'
 import ServiceTaskLink from '@/components/project/ServiceTaskLink.vue'
 import ServiceTasksDialog from '@/components/project/ServiceTasksDialog.vue'
-import { usePagination } from '@/composables/usePagination'
+import ProjectTasksTab from '@/components/project/ProjectTasksTab.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
 import { useClientStore } from '@/stores/clientStore'
 import { useContractStore } from '@/stores/contractStore'
@@ -41,7 +40,6 @@ import type { Project, ProjectWorkspaceTabKey, WorkflowStage } from '@/types/Pro
 import { formatCurrency } from '@/utils/currencyFormatter'
 import { formatDate } from '@/utils/dateFormatter'
 import { getClientVerificationVariant } from '@/utils/clientHelpers'
-import { getDocumentStatusVariant } from '@/utils/documentHelpers'
 import { formMatchesProjectService } from '@/utils/governmentFormHelpers'
 import { getAgreementStreamLabel } from '@/utils/paymentHelpers'
 import { getSubmissionStageVariant } from '@/utils/submissionHelpers'
@@ -142,6 +140,9 @@ const activeServiceKey = ref<string>()
 const activeService = computed<ServiceRef | null>(
   () => projectServices(props.project).find((service) => serviceKey(service.kind, service.id) === activeServiceKey.value) ?? null,
 )
+function designActivityById(id: string) {
+  return props.project.selectedActivities?.find((activity) => activity.id === id)
+}
 function openServiceTasks(kind: ServiceKind, id: string): void {
   activeServiceKey.value = serviceKey(kind, id)
   isServiceTasksOpen.value = true
@@ -162,24 +163,6 @@ watch(() => props.project.id, (projectId) => linkDocumentStore.loadForProject(pr
 // one activity doesn't disable the others while its request is in
 // flight.
 const activityActionPendingId = ref<string>()
-
-// The Design stage's own "services overview" (its selected design
-// activities) paginated the same way as every other list in the app --
-// see usePagination/TablePagination.vue. Sliced client-side since the
-// full list already lives on the loaded project.
-const {
-  currentPage: designActivitiesPage,
-  pageSize: designActivitiesPageSize,
-  totalItems: designActivitiesTotalItems,
-  totalPages: designActivitiesTotalPages,
-  startIndex: designActivitiesStartIndex,
-  endIndex: designActivitiesEndIndex,
-  goToPage: goToDesignActivitiesPage,
-  setPageSize: setDesignActivitiesPageSize,
-  resetPage: resetDesignActivitiesPage,
-} = usePagination(() => props.project.selectedActivities?.length ?? 0)
-const pagedDesignActivities = computed(() => (props.project.selectedActivities ?? []).slice(designActivitiesStartIndex.value, designActivitiesEndIndex.value))
-watch(() => props.project.selectedActivities, () => resetDesignActivitiesPage())
 
 async function closeDesignActivity(activityId: string, status: 'Complete' | 'Cancelled'): Promise<void> {
   activityActionPendingId.value = activityId
@@ -345,9 +328,6 @@ function loadStageDataIfNeeded(): void {
   if ((props.stageContext === 'Requirement' || props.stageContext === 'Quotation') && props.client) {
     clientStore.loadClientDetail(props.client.id)
   }
-  if (props.stageContext === 'Design') {
-    void documentStore.loadDocumentsForProject(props.project.id)
-  }
   if (props.stageContext === 'Government Submission') {
     void governmentSubmissionStore.loadSubmissionsForProject(props.project.id)
     void documentStore.loadDocumentsForProject(props.project.id)
@@ -497,10 +477,6 @@ const contractQuotation = computed(() =>
     : undefined,
 )
 
-// Design deliverables -- documents of type 'Drawing' added against this
-// project (see ProjectDesignTab.vue).
-const designDocuments = computed(() => documentStore.documentsByProject(props.project.id).filter((document) => document.type === 'Drawing'))
-
 // Required Documents -- every fillable government form the Service
 // Document Map (Administration) says this project's service needs (see
 // governmentFormHelpers.formMatchesProjectService), each checked against
@@ -622,16 +598,6 @@ const AGREEMENT_STATUS_LABEL_KEYS: Record<string, string> = {
 }
 function agreementStatusLabel(status: string): string {
   return t(AGREEMENT_STATUS_LABEL_KEYS[status] ?? status)
-}
-
-const DOCUMENT_STATUS_LABEL_KEYS: Record<string, string> = {
-  Draft: 'project.documentStatus.draft',
-  'Under Review': 'project.documentStatus.underReview',
-  Approved: 'project.documentStatus.approved',
-  Rejected: 'project.documentStatus.rejected',
-}
-function documentStatusLabel(status: string): string {
-  return t(DOCUMENT_STATUS_LABEL_KEYS[status] ?? status)
 }
 
 const SUBMISSION_STAGE_LABEL_KEYS: Record<string, string> = {
@@ -844,204 +810,91 @@ function verificationResultLabel(result: string): string {
       </div>
     </Card>
 
-    <Card v-if="stageContext === 'Design'">
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.designTitle') }}</h3>
-          <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'design')">{{ t('project.overviewTab.goToDocuments') }}</BaseButton>
-        </div>
-      </template>
-      <div class="flex flex-col gap-4">
-        <div class="flex flex-col gap-2">
-          <span class="text-xs font-medium text-text-muted">{{ t('project.overviewTab.designActivitiesTitle') }}</span>
-          <div v-if="project.selectedActivities && project.selectedActivities.length > 0" class="flex flex-col gap-2">
-            <div
-              v-for="activity in pagedDesignActivities"
-              :key="activity.id ?? activity.activityId"
-              class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <ServiceTaskLink
-                  v-if="activity.id"
-                  :name="activity.activityName"
-                  :progress="serviceTaskProgress[serviceKey('design', activity.id)]"
-                  @open="openServiceTasks('design', activity.id)"
-                />
-                <span v-else class="truncate text-sm text-text-secondary">{{ activity.activityName }}</span>
-                <div class="flex items-center gap-2">
-                  <StatusBadge :label="activity.status ?? 'Not Started'" :variant="getSelectedActivityStatusVariant(activity.status ?? 'Not Started')" />
-                  <template v-if="activity.id">
-                    <template v-if="activity.status === 'Complete' || activity.status === 'Cancelled'">
-                      <BaseButton
-                        variant="secondary" size="sm" class="no-print"
-                        :loading="activityActionPendingId === activity.id"
-                        @click="reopenDesignActivity(activity.id)"
-                      >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
-                    </template>
-                    <template v-else>
-                      <BaseButton
-                        variant="secondary" size="sm" class="no-print"
-                        :loading="activityActionPendingId === activity.id"
-                        @click="closeDesignActivity(activity.id, 'Cancelled')"
-                      >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
-                      <BaseButton
-                        variant="primary" size="sm" class="no-print"
-                        :loading="activityActionPendingId === activity.id"
-                        :disabled="!canMarkComplete('design', activity.id)"
-                        @click="closeDesignActivity(activity.id, 'Complete')"
-                      >{{ t('project.overviewTab.markComplete') }}</BaseButton>
-                      <button
-                        v-if="!designActivityTasksComplete(activity.id)"
-                        type="button"
-                        class="text-start text-xs text-text-muted underline-offset-2 no-print hover:text-primary-600 hover:underline"
-                        @click="openServiceTasks('design', activity.id)"
-                      >
-                        {{ t('project.overviewTab.tasksMustBeCompleteFirst') }}
-                      </button>
-                      <div v-else-if="!canMarkComplete('design', activity.id)" class="flex items-center gap-2 text-xs no-print">
-                        <label class="inline-flex items-center gap-1.5 text-text-muted">
-                          <input
-                            type="checkbox"
-                            class="h-3.5 w-3.5 rounded border-border-default"
-                            :checked="overrides[overrideKey('design', activity.id)]"
-                            @change="setOverride('design', activity.id, ($event.target as HTMLInputElement).checked)"
-                          />
-                          {{ t('project.overviewTab.overrideNoDocument') }}
-                        </label>
-                        <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="openAddClosureDocDialog">
-                          {{ t('project.overviewTab.addClosureDocument') }}
-                        </button>
-                      </div>
-                    </template>
+    <!-- Design stage: the Overview IS the task list -- one card per
+         Design activity holding its system-created and hand-added tasks
+         (ProjectTasksTab.vue, which used to be a separate Tasks tab), with
+         that activity's own status/close controls in the card header.
+         Permits have their own Government Submission flow, and design
+         deliverables their own Documents tab, so neither repeats here. -->
+    <div v-if="stageContext === 'Design'" class="flex flex-col gap-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h3 class="text-sm font-semibold text-text-primary">{{ t('project.overviewTab.designActivitiesTitle') }}</h3>
+        <BaseButton variant="secondary" size="sm" class="no-print" @click="emit('navigate-tab', 'design')">{{ t('project.overviewTab.goToDocuments') }}</BaseButton>
+      </div>
+      <p v-if="!project.selectedActivities || project.selectedActivities.length === 0" class="text-sm text-text-muted">
+        {{ t('project.overviewTab.noDesignActivitiesYet') }}
+      </p>
+      <ProjectTasksTab :project="project" stage-context="Design" @changed="handleServiceTasksChanged">
+        <template #service-actions="{ service }">
+          <template v-for="activity in [designActivityById(service.id)]" :key="activity?.id ?? service.id">
+            <template v-if="activity?.id">
+              <StatusBadge :label="activity.status ?? 'Not Started'" :variant="getSelectedActivityStatusVariant(activity.status ?? 'Not Started')" />
+              <BaseButton
+                v-if="activity.status === 'Complete' || activity.status === 'Cancelled'"
+                variant="secondary" size="sm" class="no-print"
+                :loading="activityActionPendingId === activity.id"
+                @click="reopenDesignActivity(activity.id)"
+              >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
+              <template v-else>
+                <BaseButton
+                  variant="secondary" size="sm" class="no-print"
+                  :loading="activityActionPendingId === activity.id"
+                  @click="closeDesignActivity(activity.id, 'Cancelled')"
+                >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
+                <BaseButton
+                  variant="primary" size="sm" class="no-print"
+                  :loading="activityActionPendingId === activity.id"
+                  :disabled="!canMarkComplete('design', activity.id)"
+                  :title="!designActivityTasksComplete(activity.id) ? t('project.overviewTab.tasksMustBeCompleteFirst') : undefined"
+                  @click="closeDesignActivity(activity.id, 'Complete')"
+                >{{ t('project.overviewTab.markComplete') }}</BaseButton>
+              </template>
+            </template>
+          </template>
+        </template>
+        <template #service-footer="{ service }">
+          <template v-for="activity in [designActivityById(service.id)]" :key="activity?.id ?? service.id">
+            <div v-if="activity?.id" class="flex flex-col gap-2 border-b border-border-light px-5 py-2 text-xs no-print">
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <button
+                  type="button"
+                  class="font-medium text-primary-600 hover:text-primary-700"
+                  @click="toggleReferenceDocs('Design', activity.activityId)"
+                >{{ t('project.overviewTab.referenceDocuments') }}</button>
+                <template v-if="activity.status !== 'Complete' && activity.status !== 'Cancelled'">
+                  <span v-if="!designActivityTasksComplete(activity.id)" class="text-text-muted">
+                    {{ t('project.overviewTab.tasksMustBeCompleteFirst') }}
+                  </span>
+                  <template v-else-if="!canMarkComplete('design', activity.id)">
+                    <label class="inline-flex items-center gap-1.5 text-text-muted">
+                      <input
+                        type="checkbox"
+                        class="h-3.5 w-3.5 rounded border-border-default"
+                        :checked="overrides[overrideKey('design', activity.id)]"
+                        @change="setOverride('design', activity.id, ($event.target as HTMLInputElement).checked)"
+                      />
+                      {{ t('project.overviewTab.overrideNoDocument') }}
+                    </label>
+                    <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="openAddClosureDocDialog">
+                      {{ t('project.overviewTab.addClosureDocument') }}
+                    </button>
                   </template>
-                </div>
+                </template>
               </div>
-              <button
-                type="button"
-                class="self-start text-xs font-medium text-primary-600 no-print hover:text-primary-700"
-                @click="toggleReferenceDocs('Design', activity.activityId)"
-              >{{ t('project.overviewTab.referenceDocuments') }}</button>
               <div v-if="expandedReferenceDocsKey === `Design:${activity.activityId}`" class="flex flex-col gap-1">
                 <SkeletonLoader v-if="isLoadingReferenceDocs === `Design:${activity.activityId}`" :rows="1" />
-                <p v-else-if="(referenceDocsByKey[`Design:${activity.activityId}`] ?? []).length === 0" class="text-xs text-text-muted">
+                <p v-else-if="(referenceDocsByKey[`Design:${activity.activityId}`] ?? []).length === 0" class="text-text-muted">
                   {{ t('project.overviewTab.noReferenceDocuments') }}
                 </p>
-                <ul v-else class="list-inside list-disc text-xs text-text-muted">
+                <ul v-else class="list-inside list-disc text-text-muted">
                   <li v-for="link in referenceDocsByKey[`Design:${activity.activityId}`]" :key="link.id">{{ link.requirementName }}</li>
                 </ul>
               </div>
             </div>
-          </div>
-          <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noDesignActivitiesYet') }}</p>
-          <TablePagination
-            v-if="designActivitiesTotalItems > 0"
-            class="rounded-xl border border-border-light"
-            :current-page="designActivitiesPage"
-            :total-pages="designActivitiesTotalPages"
-            :total-items="designActivitiesTotalItems"
-            :start-index="designActivitiesStartIndex"
-            :end-index="designActivitiesEndIndex"
-            :page-size="designActivitiesPageSize"
-            @page-change="goToDesignActivitiesPage"
-            @page-size-change="setDesignActivitiesPageSize"
-          />
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <span class="text-xs font-medium text-text-muted">{{ t('project.overviewTab.permitsTitle') }}</span>
-          <div v-if="project.selectedPermits && project.selectedPermits.length > 0" class="flex flex-col gap-2">
-            <div
-              v-for="permit in project.selectedPermits"
-              :key="permit.id"
-              class="flex flex-col gap-2 rounded-lg border border-border-light p-3"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <ServiceTaskLink
-                  :name="permit.permitName"
-                  :progress="serviceTaskProgress[serviceKey('permit', permit.id)]"
-                  @open="openServiceTasks('permit', permit.id)"
-                />
-                <div class="flex items-center gap-2">
-                  <StatusBadge :label="permit.status" :variant="getSelectedPermitStatusVariant(permit.status)" />
-                  <template v-if="permit.status === 'Complete' || permit.status === 'Cancelled'">
-                    <BaseButton
-                      variant="secondary" size="sm" class="no-print"
-                      :loading="permitActionPendingId === permit.id"
-                      @click="setPermitStatus(permit.id, 'In Progress')"
-                    >{{ t('project.overviewTab.reopenActivity') }}</BaseButton>
-                  </template>
-                  <template v-else>
-                    <BaseButton
-                      :disabled="permit.status === 'In Progress'"
-                      variant="secondary" size="sm" class="no-print"
-                      :loading="permitActionPendingId === permit.id"
-                      @click="setPermitStatus(permit.id, 'In Progress')"
-                    >{{ t('project.overviewTab.startApplication') }}</BaseButton>
-                    <BaseButton
-                      variant="secondary" size="sm" class="no-print"
-                      :loading="permitActionPendingId === permit.id"
-                      @click="setPermitStatus(permit.id, 'Cancelled')"
-                    >{{ t('project.overviewTab.markCancelled') }}</BaseButton>
-                    <BaseButton
-                      variant="primary" size="sm" class="no-print"
-                      :loading="permitActionPendingId === permit.id"
-                      :disabled="!canMarkComplete('permit', permit.id)"
-                      @click="setPermitStatus(permit.id, 'Complete')"
-                    >{{ t('project.overviewTab.markComplete') }}</BaseButton>
-                    <div v-if="!canMarkComplete('permit', permit.id)" class="flex items-center gap-2 text-xs no-print">
-                      <label class="inline-flex items-center gap-1.5 text-text-muted">
-                        <input
-                          type="checkbox"
-                          class="h-3.5 w-3.5 rounded border-border-default"
-                          :checked="overrides[overrideKey('permit', permit.id)]"
-                          @change="setOverride('permit', permit.id, ($event.target as HTMLInputElement).checked)"
-                        />
-                        {{ t('project.overviewTab.overrideNoDocument') }}
-                      </label>
-                      <button type="button" class="font-medium text-primary-600 hover:text-primary-700" @click="openAddClosureDocDialog">
-                        {{ t('project.overviewTab.addClosureDocument') }}
-                      </button>
-                    </div>
-                  </template>
-                </div>
-              </div>
-              <button
-                v-if="permit.permitId"
-                type="button"
-                class="self-start text-xs font-medium text-primary-600 no-print hover:text-primary-700"
-                @click="toggleReferenceDocs('Permit', permit.permitId)"
-              >{{ t('project.overviewTab.referenceDocuments') }}</button>
-              <div v-if="permit.permitId && expandedReferenceDocsKey === `Permit:${permit.permitId}`" class="flex flex-col gap-1">
-                <SkeletonLoader v-if="isLoadingReferenceDocs === `Permit:${permit.permitId}`" :rows="1" />
-                <p v-else-if="(referenceDocsByKey[`Permit:${permit.permitId}`] ?? []).length === 0" class="text-xs text-text-muted">
-                  {{ t('project.overviewTab.noReferenceDocuments') }}
-                </p>
-                <ul v-else class="list-inside list-disc text-xs text-text-muted">
-                  <li v-for="link in referenceDocsByKey[`Permit:${permit.permitId}`]" :key="link.id">{{ link.requirementName }}</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noPermitsSelectedYet') }}</p>
-        </div>
-
-        <PaginatedList v-if="designDocuments.length > 0" :items="designDocuments">
-          <template #default="{ items }">
-            <div class="flex flex-col gap-2">
-              <div
-                v-for="document in items"
-                :key="document.id"
-                class="flex items-center justify-between gap-3 rounded-lg border border-border-light p-3"
-              >
-                <span class="truncate text-sm text-text-secondary">{{ document.title }}</span>
-                <StatusBadge :label="documentStatusLabel(document.status)" :variant="getDocumentStatusVariant(document.status)" />
-              </div>
-            </div>
           </template>
-        </PaginatedList>
-        <p v-else class="text-sm text-text-muted">{{ t('project.overviewTab.noDesignDocumentsYet') }}</p>
-      </div>
-    </Card>
+        </template>
+      </ProjectTasksTab>
+    </div>
 
     <Card v-if="stageContext === 'Supervision'">
       <template #header>

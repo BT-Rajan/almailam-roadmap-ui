@@ -37,6 +37,20 @@ const props = defineProps<{
   stageContext?: WorkflowStage
 }>()
 
+const emit = defineEmits<{
+  // A task change that can affect the project itself (see ServiceTasksDialog's own `changed`).
+  changed: []
+}>()
+
+// The Design stage's Overview embeds this list and puts each activity's
+// own status/close controls in its card: `service-actions` renders in
+// the card header (replacing the plain status text), `service-footer`
+// right under it.
+defineSlots<{
+  'service-actions'?: (props: { service: ServiceRef }) => unknown
+  'service-footer'?: (props: { service: ServiceRef }) => unknown
+}>()
+
 const taskStore = useTaskStore()
 const clientStore = useClientStore()
 const { t } = useI18n()
@@ -161,10 +175,11 @@ function openGeneral(): void {
             </span>
             <span class="text-xs text-text-muted">
               {{ group.service ? t(KIND_LABEL_KEYS[group.service.kind]) : t('project.tasksTab.generalGroupHint') }}
-              <template v-if="group.service?.status"> &middot; {{ group.service.status }}</template>
+              <template v-if="group.service?.status && !$slots['service-actions']"> &middot; {{ group.service.status }}</template>
             </span>
           </button>
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <slot v-if="group.service" name="service-actions" :service="group.service" />
             <div v-if="group.tasks.length > 0" class="flex w-32 flex-col gap-1">
               <span class="text-end text-xs font-medium text-text-secondary">
                 {{ t('project.serviceTasks.tasksChip', { done: group.done, total: group.tasks.length }) }}
@@ -177,6 +192,7 @@ function openGeneral(): void {
           </div>
         </div>
 
+        <slot v-if="group.service" name="service-footer" :service="group.service" />
         <p v-if="group.tasks.length === 0" class="px-5 py-3 text-xs text-text-muted">{{ t('project.tasksTab.noServiceTasksYet') }}</p>
         <ul v-else class="divide-y divide-border-light">
           <li v-for="task in group.tasks" :key="task.id">
@@ -210,5 +226,6 @@ function openGeneral(): void {
     :project="project"
     :service="dialogService"
     :initial-task-id="dialogTaskId"
+    @changed="emit('changed')"
   />
 </template>
