@@ -23,9 +23,9 @@ set -Eeuo pipefail
 #   - never creates a database, never writes backend/.env -- both instances
 #     already have their DB and .env configured; this script assumes that
 #     and fails loudly if backend/.env is missing rather than guessing
-#   - applies any backend/migrations/*.sql files not yet recorded in
-#     schema_migrations -- additive only, never drops/recreates the
-#     database or touches existing rows
+#   - loads backend/schema.sql into the database ONLY if it is empty
+#     (first deployment); an existing database is never modified -- use
+#     ./reset_db_from_schema.sh to rebuild one from schema.sql
 #   - reinstalls dependencies and (re)starts the instance under pm2
 #   - installs/restarts the instance's background jobs under systemd
 #     (daily staleness-checks timer + scheduled-report worker)
@@ -89,8 +89,10 @@ Instances:
   test  -> /apps/alhadi-test  vite dev server, backend+frontend pm2 processes
 
 This script never creates a database and never writes backend/.env -- both
-instances must already have those configured. Database changes go through
-backend/migrations/*.sql, applied additively on every run.
+instances must already have those configured. On first deployment it loads
+backend/schema.sql into the (empty) database; after that it never changes
+the schema. To rebuild a database from schema.sql (destroys its data):
+  ./reset_db_from_schema.sh --instance=dev|test
 
 EOF
             exit 0
@@ -401,25 +403,21 @@ fi
 log "Database connection successful"
 
 # ----------------------------------------------------------------------------
-# 6. Apply pending migrations (additive only -- never drops/recreates the
-#    database, never touches existing rows)
+# 6. Database schema -- loaded once, on first deployment
 # ----------------------------------------------------------------------------
+# backend/schema.sql is the complete definition of the database; there are
+# no migration patches. It is loaded only into an EMPTY database (first
+# deployment). A database that already has tables is never modified here.
+# To rebuild an existing database to the current schema.sql -- which
+# destroys its data -- run ./reset_db_from_schema.sh --instance=<dev|test>.
 
 # --no-defaults MUST come first (the client requires it as the very
 # first option) and makes the client ignore every option file
-# (~/.my.cnf, /etc/mysql/my.cnf, etc.) entirely. This isn't
-# precautionary: verified live against this exact client that a
-# [client] `force` setting in ~/.my.cnf -- invisible to and
-# uncontrollable by this script -- makes it exit 0 even after a
-# statement fails, and any later statements in the same file still
-# silently run, so the migration "succeeds" while part of it never
-# happened. --no-defaults removes the setting from consideration
-# altogether rather than trying to detect its effects afterward, which
-# doesn't reliably work: the schema_migrations INSERT is a separate,
-# unaffected db_run call, so a filename can end up recorded as applied
-# even though the file's own statements partly failed. Every
-# connection parameter this script needs is already passed explicitly
-# on the command line, so no option file was ever required here.
+# (~/.my.cnf, /etc/mysql/my.cnf, etc.). Verified live against this exact
+# client: a [client] `force` setting in ~/.my.cnf makes it exit 0 even
+# after a statement fails, and later statements in the same file still
+# run -- so a broken schema load would look successful. Every connection
+# parameter is passed explicitly, so no option file is needed.
 db_run() {
     "$DB_CLIENT" --no-defaults --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME"
 }
@@ -428,135 +426,42 @@ db_query() {
     "$DB_CLIENT" --no-defaults --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -N -s "$DB_NAME"
 }
 
-MIGRATIONS_APPLIED_THIS_RUN=0
-MIGRATIONS_SKIPPED_ALREADY_APPLIED=0
-# Declared upfront (rather than only inside the branch below) so the
-# final summary can always reference ${#MIGRATIONS[@]} even when there
-# is no migrations directory at all -- set -u would otherwise treat an
-# array that was never assigned in that branch as an unbound variable.
-MIGRATIONS=()
+SCHEMA_FILE="$BACKEND_DIR/schema.sql"
+[[ -f "$SCHEMA_FILE" ]] || die "$SCHEMA_FILE not found."
 
-if [[ -d "$BACKEND_DIR/migrations" ]]; then
+count_tables() {
+    echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();" | db_query
+}
 
-    mapfile -t MIGRATIONS < <(
-        find "$BACKEND_DIR/migrations" \
-            -maxdepth 1 \
-            -type f \
-            -name '*.sql' \
-            -print |
-        sort
-    )
+if ! TABLE_COUNT="$(count_tables)"; then
+    die "Could not read the table list of '$DB_NAME'. See the database error above."
+fi
 
-    if (( ${#MIGRATIONS[@]} > 0 )); then
-
-        log "Applying database migrations (${#MIGRATIONS[@]} file(s) on disk)"
-
-        # Tracks which migration files have already been run against this
-        # database, so re-running install.sh skips them instead of
-        # replaying every .sql file from scratch every time. Each
-        # migration is still written to be idempotent on its own
-        # (information_schema-guarded ADD COLUMN, etc.) -- this table is a
-        # second, cheaper line of defense: skip the whole file rather than
-        # rely on every statement inside it tolerating a second run.
-        if ! echo "
-                CREATE TABLE IF NOT EXISTS schema_migrations (
-                    filename VARCHAR(255) NOT NULL PRIMARY KEY,
-                    applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-                );
-            " | db_run; then
-            die "Could not create/verify the schema_migrations table. See the database error above."
-        fi
-
-        for migration in "${MIGRATIONS[@]}"; do
-
-            migration_name="$(basename "$migration")"
-
-            already_applied="$(
-                echo "SELECT COUNT(*) FROM schema_migrations WHERE filename = '$migration_name';" |
-                    db_query
-            )"
-
-            if [[ "$already_applied" != "0" ]]; then
-                log "Migration: $migration_name (already applied, skipping)"
-                MIGRATIONS_SKIPPED_ALREADY_APPLIED=$((MIGRATIONS_SKIPPED_ALREADY_APPLIED + 1))
-                continue
-            fi
-
-            log "Migration: $migration_name"
-
-            # Explicit if/die instead of relying on bare `set -e` to abort
-            # the script here: this way a failure names the exact file
-            # that broke and says plainly that nothing after it ran,
-            # instead of the operator having to infer that from wherever
-            # the script happened to stop. schema_migrations is only
-            # written to on success (below), so a failed file is never
-            # recorded as applied -- re-running install.sh after fixing
-            # the underlying issue retries it and everything after it,
-            # not just the one file.
-            if ! db_run < "$migration"; then
-                die "Migration '$migration_name' failed (see the database error above). No later migrations were applied. Fix the issue and re-run this installer -- already-applied migrations are skipped automatically, so it's safe to re-run from here."
-            fi
-
-            if ! echo "INSERT INTO schema_migrations (filename) VALUES ('$migration_name');" | db_run; then
-                die "Migration '$migration_name' ran but recording it in schema_migrations failed. Re-running this installer would re-apply it -- check that the migration file is safe to run twice before doing so, or insert the schema_migrations row manually."
-            fi
-
-            MIGRATIONS_APPLIED_THIS_RUN=$((MIGRATIONS_APPLIED_THIS_RUN + 1))
-        done
-
-        log "All migrations completed ($MIGRATIONS_APPLIED_THIS_RUN applied this run, $MIGRATIONS_SKIPPED_ALREADY_APPLIED already applied)"
-
-        # Reconciliation, independent of every exit code checked above:
-        # ask the database itself which of the .sql files on disk it has
-        # no record of, rather than trusting that "the loop completed" or
-        # "the client returned 0" actually means every file's statements
-        # landed. db_run's --no-defaults already closes the specific
-        # ~/.my.cnf `force` risk this was originally added to catch (see
-        # the comment on db_run above), but this stays as a second,
-        # independent line of defense -- e.g. a process killed between a
-        # migration's own db_run and the schema_migrations INSERT that
-        # records it, or any future change to this script that
-        # reintroduces a path where a file's statements could land
-        # without ever getting recorded. Cheap, and checks something
-        # neither of those exit codes alone can guarantee: that the
-        # database's own bookkeeping actually matches disk.
-        # Captured via a plain command substitution, not
-        # `mapfile ... < <(...)` -- a failing query inside process
-        # substitution doesn't propagate its exit code back to this
-        # script even under `set -e`, so a transient failure here would
-        # silently read as "recorded nothing", which would then make
-        # every migration look falsely missing below. $(...) surfaces
-        # that failure directly instead.
-        if ! RECORDED_MIGRATIONS_RAW="$(echo "SELECT filename FROM schema_migrations;" | db_query)"; then
-            die "Could not read back schema_migrations to verify which migrations actually applied. See the database error above."
-        fi
-        mapfile -t RECORDED_MIGRATIONS <<< "$RECORDED_MIGRATIONS_RAW"
-
-        MISSING_MIGRATIONS=()
-        for migration in "${MIGRATIONS[@]}"; do
-            migration_name="$(basename "$migration")"
-            found=false
-            for recorded in "${RECORDED_MIGRATIONS[@]}"; do
-                if [[ "$recorded" == "$migration_name" ]]; then
-                    found=true
-                    break
-                fi
-            done
-            [[ "$found" == true ]] || MISSING_MIGRATIONS+=("$migration_name")
-        done
-
-        if (( ${#MISSING_MIGRATIONS[@]} > 0 )); then
-            die "Migrations exist on disk but are NOT recorded as applied in schema_migrations, even though the loop above reported success: ${MISSING_MIGRATIONS[*]}. This means the database silently didn't run what this script asked it to (a ~/.my.cnf 'force' setting is the most likely cause) -- investigate before continuing; the app is not safe to serve in this state."
-        fi
-
-        log "Verified: all ${#MIGRATIONS[@]} migration file(s) on disk are recorded as applied in schema_migrations"
-
-    else
-        log "No migrations found"
+if [[ "$TABLE_COUNT" == "0" ]]; then
+    log "Empty database -- loading schema.sql"
+    if ! db_run < "$SCHEMA_FILE"; then
+        die "Loading schema.sql failed (see the database error above). The database may now be partly created -- run ./reset_db_from_schema.sh --instance=$INSTANCE to start clean, then re-run this installer."
     fi
 
+    # Independent check that every table actually got created, rather
+    # than trusting the client's exit code alone.
+    EXPECTED_TABLES="$(grep -c '^CREATE TABLE' "$SCHEMA_FILE")"
+    LOADED_TABLES="$(count_tables)"
+    if [[ "$LOADED_TABLES" != "$EXPECTED_TABLES" ]]; then
+        die "schema.sql defines $EXPECTED_TABLES tables but the database has $LOADED_TABLES after loading it. Run ./reset_db_from_schema.sh --instance=$INSTANCE and re-run this installer."
+    fi
+    SCHEMA_SUMMARY="loaded from schema.sql ($LOADED_TABLES tables)"
+    log "Schema loaded ($LOADED_TABLES tables)"
 else
-    log "No backend/migrations directory"
+    SCHEMA_SUMMARY="existing database left unchanged ($TABLE_COUNT tables)"
+    log "Database already has $TABLE_COUNT tables -- schema not touched"
+
+    # A database built by the old per-change migration scripts carries a
+    # schema_migrations table and may not match schema.sql exactly.
+    LEGACY="$(echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'schema_migrations';" | db_query)"
+    if [[ "$LEGACY" != "0" ]]; then
+        warn "This database was built by the old migration scripts and may not match schema.sql. Rebuild it once with ./reset_db_from_schema.sh --instance=$INSTANCE (destroys its data)."
+    fi
 fi
 
 unset MYSQL_PWD
@@ -859,8 +764,8 @@ Directory:
 Deployed commit:
   ${DEPLOYED_COMMIT}
 
-Migrations:
-  ${MIGRATIONS_APPLIED_THIS_RUN} applied this run, ${MIGRATIONS_SKIPPED_ALREADY_APPLIED} already applied, ${#MIGRATIONS[@]} total on disk -- verified against schema_migrations
+Database:
+  ${SCHEMA_SUMMARY}
 
 URL:
   http://localhost:${BACKEND_PORT}
@@ -879,7 +784,7 @@ PM2:
   pm2 logs serviceos
   pm2 restart serviceos
 
-Re-run any time to pull the latest main + apply new migrations:
+Re-run any time to pull the latest main and redeploy:
   ./install.sh --instance=dev
 
 EOF
@@ -897,8 +802,8 @@ Directory:
 Deployed commit:
   ${DEPLOYED_COMMIT}
 
-Migrations:
-  ${MIGRATIONS_APPLIED_THIS_RUN} applied this run, ${MIGRATIONS_SKIPPED_ALREADY_APPLIED} already applied, ${#MIGRATIONS[@]} total on disk -- verified against schema_migrations
+Database:
+  ${SCHEMA_SUMMARY}
 
 Frontend: http://localhost:${FRONTEND_PORT}
 Backend:  http://localhost:${BACKEND_PORT}
@@ -915,7 +820,7 @@ PM2:
   pm2 logs alhadi-test-frontend
   pm2 restart alhadi-test-backend alhadi-test-frontend
 
-Re-run any time to pull the latest main + apply new migrations:
+Re-run any time to pull the latest main and redeploy:
   ./install.sh --instance=test
 
 EOF

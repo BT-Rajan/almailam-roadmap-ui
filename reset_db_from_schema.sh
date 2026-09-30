@@ -2,20 +2,16 @@
 set -Eeuo pipefail
 
 # ============================================================================
-# ServiceOS -- one-time DB reset from schema.sql
+# ServiceOS -- reset a database to a clean backend/schema.sql
 #
-# Use this ONCE when a database's migration history has gotten out of sync
-# (or you just want a clean slate) instead of replaying all
-# backend/migrations/*.sql files one by one. schema.sql is the up-to-date,
-# fully-collapsed shape of the database (it already includes everything
-# through the latest migration), so this script:
+# backend/schema.sql is the single, complete definition of the database
+# (there are no migration patches). install.sh loads it automatically
+# only into an EMPTY database, on first deployment, and never modifies an
+# existing one. Use this script when an existing database must be rebuilt
+# to the current schema.sql, e.g. after schema.sql changed. It:
 #
 #   1. Drops every existing table in the target database (DESTROYS ALL DATA)
 #   2. Loads backend/schema.sql fresh
-#   3. Creates schema_migrations and inserts one row per file currently in
-#      backend/migrations/, so a subsequent ./install.sh run sees every
-#      migration as "already applied" and does not try to replay any of
-#      them against the fresh schema
 #
 # It does NOT touch backend/.env, does NOT install dependencies, does NOT
 # start pm2 -- run ./install.sh afterwards for all of that, same as normal.
@@ -43,10 +39,8 @@ Usage:
   ./reset_db_from_schema.sh --instance=dev|test [--yes]
 
 Drops every table in the instance's configured database and reloads it
-from backend/schema.sql, then marks all backend/migrations/*.sql files as
-already applied. Run ./install.sh afterwards to install deps and start
-the app -- it will see the migrations table fully populated and skip
-straight past them.
+from backend/schema.sql. DESTROYS ALL DATA in that database. Run
+./install.sh afterwards to install deps and (re)start the app.
 
 EOF
             exit 0
@@ -90,7 +84,6 @@ INSTANCE_DIR="$APPS_DIR/$INSTANCE_NAME"
 BACKEND_DIR="$INSTANCE_DIR/backend"
 ENV_FILE="$BACKEND_DIR/.env"
 SCHEMA_FILE="$BACKEND_DIR/schema.sql"
-MIGRATIONS_DIR="$BACKEND_DIR/migrations"
 
 log "Instance: $INSTANCE -> $INSTANCE_DIR"
 
@@ -127,12 +120,15 @@ fi
 
 export MYSQL_PWD="$DB_PASSWORD"
 
+# --no-defaults first: ignore ~/.my.cnf etc. A [client] `force` option
+# there makes the client exit 0 after a failed statement, so a broken
+# schema load would look successful (see install.sh's db_run).
 run_sql() {
-    "$DB_CLIENT" --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME"
+    "$DB_CLIENT" --no-defaults --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME"
 }
 
 run_sql_n() {
-    "$DB_CLIENT" --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -N -s "$DB_NAME"
+    "$DB_CLIENT" --no-defaults --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -N -s "$DB_NAME"
 }
 
 log "Testing database connection"
@@ -179,36 +175,6 @@ log "Loading schema.sql"
 run_sql < "$SCHEMA_FILE"
 log "Schema loaded"
 
-# ----------------------------------------------------------------------------
-# 3. Mark every migration file as already applied
-# ----------------------------------------------------------------------------
-
-log "Recording migration history (schema.sql already reflects all of these)"
-
-echo "
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-        filename VARCHAR(255) NOT NULL PRIMARY KEY,
-        applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-" | run_sql
-
-if [[ -d "$MIGRATIONS_DIR" ]]; then
-    mapfile -t MIGRATIONS < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
-
-    if (( ${#MIGRATIONS[@]} > 0 )); then
-        {
-            for m in "${MIGRATIONS[@]}"; do
-                echo "INSERT IGNORE INTO schema_migrations (filename) VALUES ('$m');"
-            done
-        } | run_sql
-        log "Recorded ${#MIGRATIONS[@]} migrations as applied"
-    else
-        warn "No migration files found under $MIGRATIONS_DIR"
-    fi
-else
-    warn "No migrations directory found at $MIGRATIONS_DIR"
-fi
-
 unset MYSQL_PWD
 
 log "Database reset complete"
@@ -219,8 +185,7 @@ Next step:
   cd $INSTANCE_DIR
   ./install.sh --instance=$INSTANCE
 
-install.sh will see every migration already recorded in schema_migrations
-and skip straight to the admin-user check, dependency install, and pm2
-(re)start.
+The database now holds exactly backend/schema.sql and no data.
+install.sh recreates the admin user and restarts the app.
 
 EOF
