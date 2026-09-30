@@ -29,7 +29,10 @@ useIdleLogout()
 // session needed). Loaded once at boot, not gated on auth state --
 // there's no "wait for login" case to handle. See
 // src/utils/colorScale.ts's applyBrandColor.
-onMounted(() => companyStore.loadBranding())
+// A restored session already brought it (authStore._applySession).
+onMounted(() => {
+  if (!companyStore.branding) void companyStore.loadBranding()
+})
 
 const layout = computed(() => {
   if (route.meta.layout === 'site-portal') return SitePortalLayout

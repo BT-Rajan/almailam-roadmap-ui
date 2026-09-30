@@ -5,15 +5,19 @@ from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.exceptions import AuthError
+from app.core.kuwait_time import KUWAIT_TIMEZONE, kuwait_now
 from app.core.middleware import client_ip
 from app.models.user import User
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
+    SessionBootstrapOut,
     TokenResponse,
 )
+from app.schemas.company import CompanyBrandingOut
+from app.schemas.server_time import ServerTimeOut
 from app.schemas.user import CurrentUserOut, ProfileUpdate
-from app.services import auth_service, role_service, user_service
+from app.services import ai_config_service, auth_service, company_service, role_service, user_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 settings = get_settings()
@@ -55,13 +59,29 @@ def _current_user_out(db: Session, user: User) -> CurrentUserOut:
     return CurrentUserOut.from_model_with_permissions(user, role_service.get_role_permissions(db, user.role))
 
 
+def _session_bootstrap(db: Session, user: User) -> SessionBootstrapOut:
+    now = kuwait_now()
+    knowledge_enabled = False
+    if role_service.has_permission(db, user.role, "Knowledgebase", "view"):
+        config, _providers = ai_config_service.get_configuration(db)
+        knowledge_enabled = config.is_enabled
+    return SessionBootstrapOut(
+        serverTime=ServerTimeOut(date=now.date().isoformat(), datetime=now.isoformat(), timezone=KUWAIT_TIMEZONE),
+        branding=CompanyBrandingOut.from_model(company_service.get_settings(db)),
+        knowledgeEnabled=knowledge_enabled,
+    )
+
+
 def _token_response(db: Session, tokens: dict) -> TokenResponse:
-    """The new access token plus the signed-in user, so the app doesn't
-    need a second round trip to /me before it can show anything."""
+    """The new access token plus the signed-in user and what the app needs
+    to start (see SessionBootstrapOut), so sign-in -- or resuming a session
+    on page load -- is the only request before the first page can show."""
+    user = tokens["user"]
     return TokenResponse(
         access_token=tokens["access_token"],
         token_type=tokens["token_type"],
-        user=_current_user_out(db, tokens["user"]),
+        user=_current_user_out(db, user),
+        session=_session_bootstrap(db, user),
     )
 
 

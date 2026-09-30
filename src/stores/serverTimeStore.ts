@@ -49,6 +49,13 @@ export const useServerTimeStore = defineStore('serverTime', {
   },
 
   actions: {
+    /** Kuwait "today" that arrived with the sign-in response (see
+     * authStore._applySession) -- also keeps it current past midnight
+     * in a long-open tab, since every token refresh brings it again. */
+    setToday(dateIso: string) {
+      this.todayIso = dateIso
+    },
+
     async loadServerTime(): Promise<void> {
       if (this.isLoaded || this.isLoading) return
       this.isLoading = true
