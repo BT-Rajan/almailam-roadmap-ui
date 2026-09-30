@@ -646,7 +646,7 @@ def render_contract_pdf(db: Session, contract: Contract, language: str | None = 
     return cost_workout_service.render_pdf(workout), f"{contract.contract_no}.pdf"
 
 
-def _resolve_payment_plan_template(db: Session, project: Project, language: str) -> DocumentTemplate:
+def _resolve_payment_plan_template(db: Session, project: Project, language: str) -> DocumentTemplate | None:
     """See _resolve_quotation_template's docstring for the general rule.
     Payment Plan has no single "finalized" record to key the pin off
     (it's derived from the project's FinancialAgreements, not one row),
@@ -660,9 +660,10 @@ def _resolve_payment_plan_template(db: Session, project: Project, language: str)
 
     template = get_default(db, "Payment Plan", language)
     if template is None:
-        raise ValidationAppError(
-            f"No default {language} Payment Plan template is configured. Upload one in Administration > Documents."
-        )
+        # No uploaded template for this language: the caller falls back to
+        # the built-in layout (payment_plan_document) rather than failing.
+        # Nothing is pinned, so a template uploaded later is picked up.
+        return None
     if project.payment_plan_template_id is None:
         project.payment_plan_template_id = template.id
         db.commit()
@@ -683,15 +684,33 @@ def render_payment_plan_document(
     than rendered empty. Passing `stream` (one of AGREEMENT_STREAMS)
     narrows this to that stream alone -- e.g. so a project's Documents
     tab can offer the Design and Permit plan and the Supervision plan
-    as two separate files instead of one merged one."""
+    as two separate files instead of one merged one.
+
+    Uses the default uploaded Payment Plan template for the language when
+    there is one, else the built-in layout (payment_plan_document) -- in
+    English or Arabic (right-to-left) alike."""
+    language = _resolve_language(db, language)
+    context, filename = _payment_plan_context(db, project, language, stream)
+    template = _resolve_payment_plan_template(db, project, language)
+    if template is None:
+        from app.services import payment_plan_document
+
+        company_name = company_service.get_settings(db).company_name
+        return payment_plan_document.render_docx(context, language, company_name, _existing_logo_path(db)), filename
+    return _render_docx(template.storage_key, context, _get_company_logo_path(db)), filename
+
+
+def _existing_logo_path(db: Session) -> Path | None:
+    logo = _get_company_logo_path(db)
+    return logo if logo is not None and logo.is_file() else None
+
+
+def _payment_plan_context(db: Session, project: Project, language: str, stream: str | None) -> tuple[dict, str]:
     from app.models.payment import AGREEMENT_STREAMS
     from app.services import payment_service
 
     if stream is not None and stream not in AGREEMENT_STREAMS:
         raise ValidationAppError(f"stream must be one of {', '.join(AGREEMENT_STREAMS)}.")
-
-    language = _resolve_language(db, language)
-    template = _resolve_payment_plan_template(db, project, language)
 
     client = db.query(Client).filter(Client.id == project.client_id).first()
 
@@ -730,8 +749,7 @@ def render_payment_plan_document(
         "schedule": schedule,
     }
     suffix = f"-{stream}" if stream else ""
-    filename = f"{project.project_no}-Payment-Plan{suffix}.docx"
-    return _render_docx(template.storage_key, context, _get_company_logo_path(db)), filename
+    return context, f"{project.project_no}-Payment-Plan{suffix}.docx"
 
 
 def render_payment_plan_pdf(
@@ -741,6 +759,13 @@ def render_payment_plan_pdf(
     render_quotation_pdf's docstring."""
     language = _resolve_language(db, language)
     template = _resolve_payment_plan_template(db, project, language)
+    if template is None:
+        from app.services import payment_plan_document
+
+        context, filename = _payment_plan_context(db, project, language, stream)
+        company_name = company_service.get_settings(db).company_name
+        content = payment_plan_document.render_pdf(context, language, company_name, _existing_logo_path(db))
+        return content, filename.removesuffix(".docx") + ".pdf"
     content, filename = render_payment_plan_document(db, project, language, stream)
     return _docx_to_pdf(content, template), filename.removesuffix(".docx") + ".pdf"
 
