@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { niceTicks } from '@/components/reports/chartUtils'
 import { addDaysIso } from '@/utils/dateFormatter'
-import { formatRange, isIsoDate, presetRange } from '@/utils/reportRange'
+import { formatRange, isIsoDate, presetRange, previousPeriod, samePeriodLastYear } from '@/utils/reportRange'
 
 beforeEach(() => setActivePinia(createPinia()))
 
@@ -39,6 +39,25 @@ describe('presetRange', () => {
     expect(addDaysIso('2026-09-30', 0)).toBe('2026-09-30')
     expect(addDaysIso('2026-09-30', 1)).toBe('2026-10-01')
     expect(addDaysIso('2026-03-01', -1)).toBe('2026-02-28')
+  })
+})
+
+describe('comparison periods', () => {
+  it('shifts whole months by months', () => {
+    expect(previousPeriod({ from: '2026-03-01', to: '2026-03-31' })).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+    expect(previousPeriod({ from: '2026-07-01', to: '2026-09-30' })).toEqual({ from: '2026-04-01', to: '2026-06-30' })
+    expect(previousPeriod({ from: '2026-01-01', to: '2026-12-31' })).toEqual({ from: '2025-01-01', to: '2025-12-31' })
+  })
+
+  it('shifts other ranges by the same number of days', () => {
+    expect(previousPeriod({ from: '2026-09-24', to: '2026-09-30' })).toEqual({ from: '2026-09-17', to: '2026-09-23' })
+    expect(previousPeriod({ from: '2026-03-01', to: '2026-03-10' })).toEqual({ from: '2026-02-19', to: '2026-02-28' })
+  })
+
+  it('goes back a year, keeping month-ends', () => {
+    expect(samePeriodLastYear({ from: '2026-09-01', to: '2026-09-30' })).toEqual({ from: '2025-09-01', to: '2025-09-30' })
+    expect(samePeriodLastYear({ from: '2028-02-01', to: '2028-02-29' })).toEqual({ from: '2027-02-01', to: '2027-02-28' })
+    expect(samePeriodLastYear({ from: '2027-02-01', to: '2027-02-28' })).toEqual({ from: '2026-02-01', to: '2026-02-28' })
   })
 })
 

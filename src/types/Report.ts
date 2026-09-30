@@ -294,7 +294,10 @@ export interface EmployeePerformanceReport {
 export interface FinancialCurrencyBreakdown {
   currency: string
   totalReceived: number
+  totalRefunded: number
+  netReceived: number
   totalDue: number
+  totalCollected: number
   totalOutstanding: number
   totalOverdue: number
 }

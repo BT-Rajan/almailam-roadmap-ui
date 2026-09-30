@@ -368,21 +368,37 @@ def financial_period_summary(db: Session, start_date: date, end_date: date) -> d
     )
     today = kuwait_today()
     due_by_currency: dict[str, float] = {}
+    collected_by_currency: dict[str, float] = {}
     outstanding_by_currency: dict[str, float] = {}
     overdue_by_currency: dict[str, float] = {}
     for obligation, agreement in obligations_due:
-        currency = agreement.currency
-        due_amount = float(obligation.amount_due)
-        due_by_currency[currency] = due_by_currency.get(currency, 0.0) + due_amount
+        # Cancelled/waived instalments were never really billed -- left
+        # out of "due" as well as outstanding, the same as the Executive
+        # Summary's "Billed" and the Payments page.
         if obligation.manual_status is not None:
             continue
-        remaining = max(due_amount - float(obligation.amount_received), 0.0)
+        currency = agreement.currency
+        due_amount = float(obligation.amount_due)
+        received_amount = float(obligation.amount_received)
+        due_by_currency[currency] = due_by_currency.get(currency, 0.0) + due_amount
+        collected_by_currency[currency] = collected_by_currency.get(currency, 0.0) + min(received_amount, due_amount)
+        remaining = max(due_amount - received_amount, 0.0)
         outstanding_by_currency[currency] = outstanding_by_currency.get(currency, 0.0) + remaining
         if remaining > 0 and obligation.due_date < today:
             overdue_by_currency[currency] = overdue_by_currency.get(currency, 0.0) + remaining
 
+    refunded_by_currency: dict[str, float] = {}
+    for currency, total in (
+        db.query(FinancialAgreement.currency, func.sum(Refund.refund_amount))
+        .join(FinancialAgreement, Refund.agreement_id == FinancialAgreement.id)
+        .filter(Refund.refund_date >= start_date, Refund.refund_date <= end_date)
+        .group_by(FinancialAgreement.currency)
+        .all()
+    ):
+        refunded_by_currency[currency] = float(total or 0)
+
     currencies = sorted(
-        set(received_by_currency) | set(due_by_currency) | set(outstanding_by_currency) | set(overdue_by_currency)
+        set(received_by_currency) | set(due_by_currency) | set(outstanding_by_currency) | set(overdue_by_currency) | set(refunded_by_currency)
     ) or [company_service.get_settings(db).currency]
 
     return {
@@ -392,10 +408,13 @@ def financial_period_summary(db: Session, start_date: date, end_date: date) -> d
         "byCurrency": [
             {
                 "currency": currency,
-                "totalReceived": received_by_currency.get(currency, 0.0),
-                "totalDue": due_by_currency.get(currency, 0.0),
-                "totalOutstanding": outstanding_by_currency.get(currency, 0.0),
-                "totalOverdue": overdue_by_currency.get(currency, 0.0),
+                "totalReceived": round(received_by_currency.get(currency, 0.0), 2),
+                "totalRefunded": round(refunded_by_currency.get(currency, 0.0), 2),
+                "netReceived": round(received_by_currency.get(currency, 0.0) - refunded_by_currency.get(currency, 0.0), 2),
+                "totalDue": round(due_by_currency.get(currency, 0.0), 2),
+                "totalCollected": round(collected_by_currency.get(currency, 0.0), 2),
+                "totalOutstanding": round(outstanding_by_currency.get(currency, 0.0), 2),
+                "totalOverdue": round(overdue_by_currency.get(currency, 0.0), 2),
             }
             for currency in currencies
         ],

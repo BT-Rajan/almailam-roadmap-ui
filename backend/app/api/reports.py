@@ -167,8 +167,8 @@ def team_workload(period: Period = Depends(period_query), db: Session = Depends(
 
 
 @router.get("/financial-summary", response_model=FinancialPeriodSummary)
-def financial_summary(startDate: date, endDate: date, db: Session = Depends(get_db), _=Depends(can_view)):
-    return report_service.financial_period_summary(db, startDate, endDate)
+def financial_summary(period: Period = Depends(period_query), db: Session = Depends(get_db), _=Depends(can_view)):
+    return report_service.financial_period_summary(db, period.start, period.end)
 
 
 @router.get("/projects/{project_no}", response_model=list[ReportSection])

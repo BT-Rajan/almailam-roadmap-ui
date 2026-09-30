@@ -76,6 +76,45 @@ export function presetRange(preset: Exclude<RangePreset, 'custom'>, today: strin
   }
 }
 
+const DAY_MS = 86_400_000
+const toTime = (value: string) => Date.parse(`${value}T00:00:00Z`)
+const fromTime = (time: number) => new Date(time).toISOString().slice(0, 10)
+
+/** Whole calendar months (1st to month-end): how many, or null if not aligned. */
+function wholeMonths(range: DateRange): number | null {
+  const [fy, fm, fd] = range.from.split('-').map(Number)
+  const [ty, tm] = range.to.split('-').map(Number)
+  if (fd !== 1 || range.to !== iso(ty, tm, 0)) return null
+  return (ty - fy) * 12 + (tm - fm) + 1
+}
+
+/**
+ * The period just before `range`, for "compared with previous period":
+ * whole months shift by months (March -> February, Q3 -> Q2), anything
+ * else by the same number of days immediately before.
+ */
+export function previousPeriod(range: DateRange): DateRange {
+  const months = wholeMonths(range)
+  if (months !== null) {
+    const [fy, fm] = range.from.split('-').map(Number)
+    return { from: iso(fy, fm - 1 - months, 1), to: iso(fy, fm - 1, 0) }
+  }
+  const days = Math.round((toTime(range.to) - toTime(range.from)) / DAY_MS) + 1
+  const to = toTime(range.from) - DAY_MS
+  return { from: fromTime(to - (days - 1) * DAY_MS), to: fromTime(to) }
+}
+
+/** The same dates a year earlier (29 Feb becomes 28 Feb; month-ends stay month-ends). */
+export function samePeriodLastYear(range: DateRange): DateRange {
+  const shift = (value: string, isEnd: boolean) => {
+    const [y, m, d] = value.split('-').map(Number)
+    const lastDay = Number(iso(y - 1, m, 0).slice(8))
+    const wasMonthEnd = value === iso(y, m, 0)
+    return iso(y - 1, m - 1, isEnd && wasMonthEnd ? lastDay : Math.min(d, lastDay))
+  }
+  return { from: shift(range.from, false), to: shift(range.to, true) }
+}
+
 /** A readable "1 Sep 2026 – 30 Sep 2026" for headers and printouts. */
 export function formatRange(range: DateRange): string {
   const format = (value: string) =>

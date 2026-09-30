@@ -81,7 +81,10 @@ class PaymentProjections(BaseModel):
 class FinancialCurrencyBreakdown(BaseModel):
     currency: str
     totalReceived: float
+    totalRefunded: float = 0
+    netReceived: float = 0
     totalDue: float
+    totalCollected: float = 0
     totalOutstanding: float
     totalOverdue: float
 

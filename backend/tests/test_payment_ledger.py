@@ -58,5 +58,20 @@ class PaymentLedgerTest(unittest.TestCase):
         self.assertNotIn("2026-08", months)  # fully paid
 
 
+class FinancialPeriodSummaryTest(PaymentLedgerTest):
+    def test_september(self):
+        # A cancelled instalment due in September must not count as billed.
+        agreement_id = self.db.query(FinancialAgreement.id).scalar()
+        make(self.db, PaymentObligation, agreement_id=agreement_id, due_date=date(2026, 9, 20), amount_due=999,
+             amount_received=0, sequence_number=4, manual_status="Cancelled")
+        self.db.commit()
+        with mock.patch.object(report_service, "kuwait_today", return_value=date(2026, 9, 30)):
+            summary = report_service.financial_period_summary(self.db, date(2026, 9, 1), date(2026, 9, 30))
+        (kwd,) = summary["byCurrency"]
+        self.assertEqual((kwd["totalReceived"], kwd["totalRefunded"], kwd["netReceived"]), (100.0, 50.0, 50.0))
+        self.assertEqual((kwd["totalDue"], kwd["totalCollected"], kwd["totalOutstanding"], kwd["totalOverdue"]), (300.0, 100.0, 200.0, 200.0))
+        self.assertEqual(summary["paymentCount"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

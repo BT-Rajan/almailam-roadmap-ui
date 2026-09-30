@@ -13,6 +13,8 @@ interface Props {
   change?: {
     direction: 'up' | 'down'
     percentage: number
+    /** Whether this move is good news (more cash) or bad (more overdue); defaults to up = good. */
+    good?: boolean
   }
   color?: string
   /** One short line saying what the figure counts, e.g. "of 2,000 billed". */
@@ -28,7 +30,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const changeColor = computed(() => {
   if (!props.change) return ''
-  return props.change.direction === 'up' ? 'text-success-500' : 'text-danger-500'
+  const good = props.change.good ?? props.change.direction === 'up'
+  return good ? 'text-success-600' : 'text-danger-600'
 })
 
 // Same treatment as the dashboard's StatisticsCard: a white card with a
