@@ -16,7 +16,7 @@ Since then work has moved to hardening and bug-fixing driven by code audits rath
 - **Data-integrity fixes**: row-level locking on payment obligation updates to close a lost-update race, real unique IDs for projects/documents created via the frontend (previously client-generated), status-transition handling routed consistently through the workflow engine, a submission-deletion bug replaced with a proper "Withdrawn" status.
 - **Feature completions**: a real global Audit Log viewer, a real Activity Calendar (previously 404s) now restyled into the site's design system and wired into Task Management, a working LLM integration for the AI Assistant/document review (Anthropic or DeepSeek, configured via the admin AI Configuration page).
 - **UI/theme**: a "light luxurious grey" glassmorphism theme pass, dark-mode contrast fixes, lazy-loaded workspace tabs and wizard steps for performance.
-- **Ops**: `install.sh`, an interactive, re-runnable Ubuntu installer that deploys to one of two fixed instances under `/apps` -- `/apps/serviceos` (dev: production build, single pm2 process serving the API and built frontend from one port) or `/apps/alhadi-test` (test: vite dev server, separate pm2 processes for backend/frontend) -- by pulling `main` into the chosen instance and applying any new `backend/migrations/*.sql` files. It never creates a database or writes `backend/.env`; both instances must already have those configured.
+- **Ops**: `install.sh`, an interactive, re-runnable Ubuntu installer that deploys to one of two fixed instances under `/apps` -- `/apps/serviceos` (dev: production build, single pm2 process serving the API and built frontend from one port) or `/apps/alhadi-test` (test: vite dev server, separate pm2 processes for backend/frontend) -- by pulling `main` into the chosen instance. It loads `backend/schema.sql` into the database only on first deployment (when the database is empty) and never modifies an existing one. It never creates a database or writes `backend/.env`; both instances must already have those configured.
 
 The `fix/code-audit-uniform-practices` branch has further in-progress fixes not yet merged to `main`.
 
@@ -36,7 +36,16 @@ Dashboard · Client Onboarding (individual/company/organisation/government entit
 ./install.sh --instance=test # -> /apps/alhadi-test
 ```
 
-Deploys/updates the chosen instance under `/apps` by pulling `main` and applying any pending migrations. Assumes `backend/.env` and the database already exist for that instance -- it never creates a database and never writes `.env`. Safe to re-run.
+Deploys/updates the chosen instance under `/apps` by pulling `main`. On first deployment (empty database) it loads `backend/schema.sql` and creates the admin user; after that it never changes the schema. Assumes `backend/.env` and the database already exist for that instance -- it never creates a database and never writes `.env`. Safe to re-run.
+
+### Database schema
+
+`backend/schema.sql` is the single, complete definition of the database -- there are no migration patches. To change the schema, edit `schema.sql` (and the matching SQLAlchemy model in `backend/app/models/`), then rebuild the database from it:
+
+```bash
+./reset_db_from_schema.sh --instance=dev   # DROPS ALL TABLES and data, reloads schema.sql
+./install.sh --instance=dev                # recreates the admin user, restarts the app
+```
 
 ### Manual
 

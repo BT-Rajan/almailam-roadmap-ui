@@ -11,7 +11,6 @@ bcrypt==4.2.1
 email-validator==2.3.0
 python-multipart==0.0.20
 httpx==0.28.1
-APScheduler==3.11.3
 # Text extraction for the knowledgebase Q&A feature (app/services/
 # knowledge_extract.py) -- pulls plain text out of uploaded PDF/DOCX
 # files (including Arabic text layers) so it can be grounded into the

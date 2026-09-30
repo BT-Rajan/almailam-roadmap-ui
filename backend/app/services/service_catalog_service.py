@@ -23,18 +23,6 @@ DEFAULT_SERVICE_NAMES = [
     "Civil Engineering",
 ]
 
-# A Design-branch service, same family as DEFAULT_SERVICE_NAMES above --
-# permits are billable Design work like any other named service. Its
-# child activity is what a project's service picker actually checks off
-# ("select Permit" checks off "Approval Service" automatically, and
-# vice versa, via the picker's existing select-parent-selects-all-
-# activities/indeterminate-state mechanics -- there being exactly one
-# activity here is what makes those two checkboxes stay in lockstep).
-PERMIT_SERVICE_NAME = "Permit"
-PERMIT_DEFAULT_ACTIVITIES = [
-    ("Approval Service", 0.00),
-]
-
 # The single Supervision-branch service (migration 0059, replacing the
 # old, separate "Additional Activity Catalog"). Its activities are
 # monthly recurring fees rather than one-time -- same cost values the old
@@ -50,28 +38,28 @@ SUPERVISION_DEFAULT_ACTIVITIES = [
 
 
 def _ensure_seeded(db: Session) -> None:
-    """Seeds the Design defaults, the Permit service, and the
-    Supervision service independently of each other -- each has its own
-    existence check, rather than one "any active service exists" guard
-    for all three. A single shared guard meant that once e.g. migration
-    0059 inserted the lone Supervision row on an install whose catalog
-    was otherwise still empty, this function saw a non-empty table and
-    never seeded the Design defaults (or Permit) at all -- "No Design
-    services in the catalog yet." forever, even though the catalog was
-    reachable and editable."""
+    """Seeds the Design defaults and the Supervision service, each with
+    its own existence check -- a single shared "any active service
+    exists" guard meant that once e.g. migration 0059 inserted the lone
+    Supervision row on an otherwise empty catalog, the Design defaults
+    were never seeded at all.
+
+    Each is seeded once per install: the checks count soft-deleted rows
+    too, so a default an admin removes stays removed. Checking only
+    active rows re-created it on the very next catalog load.
+
+    "Permit" is no longer seeded as a Design service: permits live in the
+    Permit Catalog, and a Design service can't be named "Permit" (see
+    _assert_design_name_allowed)."""
     _ensure_design_defaults_seeded(db)
-    _ensure_named_service_seeded(db, PERMIT_SERVICE_NAME, "Design", PERMIT_DEFAULT_ACTIVITIES)
     _ensure_named_service_seeded(db, SUPERVISION_SERVICE_NAME, "Supervision", SUPERVISION_DEFAULT_ACTIVITIES)
 
 
 def _ensure_design_defaults_seeded(db: Session) -> None:
-    has_design = (
-        db.query(ServiceCatalogItem)
-        .filter(ServiceCatalogItem.deleted_at.is_(None), ServiceCatalogItem.branch == "Design")
-        .first()
-        is not None
-    )
-    if has_design:
+    # Any Design row, deleted or not: an admin removing every default
+    # Design service must not bring all five back.
+    ever_had_design = db.query(ServiceCatalogItem).filter(ServiceCatalogItem.branch == "Design").first() is not None
+    if ever_had_design:
         return
     # Same check-then-insert race as role_service._ensure_seeded /
     # ai_config_service._ensure_seeded (see those for the fuller
@@ -91,13 +79,9 @@ def _ensure_design_defaults_seeded(db: Session) -> None:
 def _ensure_named_service_seeded(
     db: Session, name: str, branch: str, activities: list[tuple[str, float]],
 ) -> None:
-    exists = (
-        db.query(ServiceCatalogItem)
-        .filter(ServiceCatalogItem.deleted_at.is_(None), ServiceCatalogItem.name == name)
-        .first()
-        is not None
-    )
-    if exists:
+    # Deleted rows count: once seeded, removing it is the admin's call.
+    ever_existed = db.query(ServiceCatalogItem).filter(ServiceCatalogItem.name == name).first() is not None
+    if ever_existed:
         return
     try:
         service = ServiceCatalogItem(name=name, branch=branch)
@@ -258,11 +242,19 @@ def remove_service(db: Session, service_raw_id: str, user_id: int) -> None:
     db.commit()
 
 
+def _assert_cost_positive(fixed_cost) -> None:
+    # Every activity is billable: a 0 KWD activity would put a free line
+    # into quotations and payment plans.
+    if fixed_cost is None or fixed_cost <= 0:
+        raise ValidationAppError("Fixed cost must be greater than 0 KWD.")
+
+
 def add_activity(db: Session, service_raw_id: str, name: str, fixed_cost, user_id: int) -> ServiceCatalogActivity:
     service = get_service(db, service_raw_id)
     clean_name = name.strip()
     if not clean_name:
         raise ValidationAppError("Activity name is required.")
+    _assert_cost_positive(fixed_cost)
     activity = ServiceCatalogActivity(service_id=service.id, name=clean_name, fixed_cost=fixed_cost)
     db.add(activity)
     db.flush()
@@ -285,6 +277,7 @@ def update_activity(
             raise ValidationAppError("Activity name is required.")
         activity.name = clean_name
     if fixed_cost is not None:
+        _assert_cost_positive(fixed_cost)
         activity.fixed_cost = fixed_cost
     audit_service.log_event(
         db, ENTITY_TYPE, activity.service_id, "Activity updated", user_id,

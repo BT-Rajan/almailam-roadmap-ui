@@ -1,29 +1,18 @@
--- Single source of truth for a fresh database -- install.sh's fresh-DB
--- mode (and reset_db_from_schema.sh) load only this file, no
--- migrations. backend/migrations/*.sql exist purely to patch an
--- already-running live database with real data up to the same state
--- (see migration 0001's own header comment); every one of their
--- cumulative effects through migration 0095 (add_notification_link_query) is
--- already factored in here, so a fresh install never needs to run
--- them.
+-- ServiceOS database schema: the single, complete definition of the
+-- database. There are no migration patches.
 --
--- Three deliberately-dropped pieces of dead history, kept out rather
--- than carried forward for their own sake: `pending_client_onboardings`
--- (migration 0072, for an email-OTP client-onboarding flow no code
--- anywhere still references), `projects.type_activity_total`
--- (migration 0041, superseded by supervision_monthly_total -- the
--- rename in migration 0059 only fires when a database reaches it with
--- the old column still present and the new one not yet there, which
--- never happens starting fresh from this file), and the
--- `otp_code_hash`/`otp_expires_at`/`otp_attempts`/`otp_sent_at`
--- columns EmailOtpMixin used to add to clients/projects/quotations/
--- contracts (migration 0094 -- the model mixin and every write site
--- were also removed, once nothing was left reading them).
+-- Loaded once, into an empty database, on first deployment (install.sh
+-- does this automatically). To rebuild an existing database from this
+-- file -- destroys its data -- run ./reset_db_from_schema.sh.
 --
--- Regenerate by applying schema.sql + every migrations/*.sql file in
--- order against a scratch database, then diff its structure
--- (information_schema.COLUMNS/TABLE_CONSTRAINTS) against this file's
--- own loaded structure to find what's drifted.
+-- Changing the schema: edit this file, keep the SQLAlchemy models in
+-- backend/app/models/ in step with it, and rebuild the database with
+-- ./reset_db_from_schema.sh.
+--
+-- A few tables/columns exist here without a SQLAlchemy model because the
+-- code uses them through plain SQL: audit_log (audit_service),
+-- number_series (number_series_service), and
+-- service_catalog_items.active_name_lower (backs the unique-name index).
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -156,7 +145,8 @@ CREATE TABLE IF NOT EXISTS clients (
     INDEX idx_clients_status (status),
     INDEX idx_clients_onboarding_state (onboarding_state),
     INDEX idx_clients_deleted_at (deleted_at),
-    INDEX idx_clients_account_manager (account_manager_id)
+    INDEX idx_clients_account_manager (account_manager_id),
+    INDEX idx_clients_deleted_status (deleted_at, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS client_contacts (
@@ -342,7 +332,9 @@ CREATE TABLE IF NOT EXISTS projects (
         REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_projects_client (client_id),
     INDEX idx_projects_status (status),
-    INDEX idx_projects_deleted_at (deleted_at)
+    INDEX idx_projects_deleted_at (deleted_at),
+    INDEX idx_projects_deleted_status (deleted_at, status),
+    INDEX idx_projects_deleted_stage (deleted_at, current_stage)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS project_scope_revisions (
@@ -476,7 +468,15 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     -- Handover (see _assert_stage_exit_criteria), independent of
     -- whether any submission for it exists or is Approved.
     project_selected_permit_id  BIGINT UNSIGNED NULL,
-    status                      ENUM('Draft','Submitted','Under Review','Comments Received','Approved','Rejected','Withdrawn') NOT NULL DEFAULT 'Draft',
+    -- Where the application is in its Prepare -> Apply -> Track -> Close
+    -- workflow; the result lives in response_outcome once Closed.
+    stage                       ENUM('Prepare','Apply','Track','Close') NOT NULL DEFAULT 'Prepare',
+    -- Prepare: the checklist was confirmed complete, and by whom.
+    readiness_confirmed_at      DATETIME NULL,
+    readiness_confirmed_by      BIGINT UNSIGNED NULL,
+    -- Apply: the authority's acknowledgement and fee payment references.
+    acknowledgement_number      VARCHAR(60) NULL,
+    payment_reference           VARCHAR(100) NULL,
     submitted_date               DATE NULL,
     expected_decision_date       DATE NULL,
     decision_date                DATE NULL,
@@ -491,7 +491,8 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     proof_of_response_size_bytes      BIGINT UNSIGNED NULL,
     proof_of_response_uploaded_by     BIGINT UNSIGNED NULL,
     proof_of_response_upload_date     DATE NULL,
-    response_outcome                  ENUM('Approved','Rejected','No Response') NULL,
+    response_outcome                  ENUM('Approved','Rejected','No Response','Withdrawn') NULL,
+    closing_notes                     TEXT NULL,
     created_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at                   DATETIME NULL,
@@ -502,8 +503,8 @@ CREATE TABLE IF NOT EXISTS government_submissions (
     CONSTRAINT fk_government_submissions_proof_response_by FOREIGN KEY (proof_of_response_uploaded_by) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_government_submissions_selected_permit FOREIGN KEY (project_selected_permit_id)
         REFERENCES project_selected_permits(id) ON DELETE SET NULL,
+    CONSTRAINT fk_gov_sub_readiness_by FOREIGN KEY (readiness_confirmed_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_government_submissions_project (project_id),
-    INDEX idx_government_submissions_status (status),
     INDEX idx_government_submissions_selected_permit (project_selected_permit_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -534,6 +535,10 @@ CREATE TABLE IF NOT EXISTS submission_followups (
     followup_time   VARCHAR(20) NOT NULL,
     contact_person  VARCHAR(150) NOT NULL,
     notes           TEXT NULL,
+    -- Optional file attached to the follow-up (e.g. the authority's reply).
+    storage_key       VARCHAR(300) NULL,
+    original_filename VARCHAR(255) NULL,
+    file_size_bytes   BIGINT NULL,
     created_by      BIGINT UNSIGNED NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_submission_followups_submission FOREIGN KEY (submission_id) REFERENCES government_submissions(id) ON DELETE CASCADE,
@@ -923,6 +928,26 @@ CREATE TABLE IF NOT EXISTS project_documents (
     INDEX idx_project_documents_source_form (source_form_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Which of a project's required documents (document_requirement_links)
+-- have been satisfied, and by which uploaded project document. One row
+-- per project + requirement.
+CREATE TABLE IF NOT EXISTS project_document_requirement_fulfillments (
+    id                           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    project_id                   BIGINT UNSIGNED NOT NULL,
+    document_requirement_link_id BIGINT UNSIGNED NOT NULL,
+    document_id                  BIGINT UNSIGNED NULL,
+    fulfilled_at                 DATETIME NULL,
+    fulfilled_by                 BIGINT UNSIGNED NULL,
+    CONSTRAINT uq_project_doc_req_fulfillments_target UNIQUE (project_id, document_requirement_link_id),
+    CONSTRAINT fk_project_doc_req_fulfillments_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_doc_req_fulfillments_link FOREIGN KEY (document_requirement_link_id)
+        REFERENCES document_requirement_links(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_doc_req_fulfillments_document FOREIGN KEY (document_id) REFERENCES project_documents(id) ON DELETE SET NULL,
+    CONSTRAINT fk_project_doc_req_fulfillments_user FOREIGN KEY (fulfilled_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_project_doc_req_fulfillments_project (project_id),
+    INDEX idx_project_doc_req_fulfillments_link (document_requirement_link_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- One government form, filled in and saved for one project -- the
 -- Approvals & Permits tab's own record, organized by the form's
 -- authority (MEW/KFD/Baladia/...) there. Saving does two things in one
@@ -1028,18 +1053,18 @@ CREATE TABLE IF NOT EXISTS tasks (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     task_no         VARCHAR(20) NOT NULL UNIQUE,
     project_id      BIGINT UNSIGNED NOT NULL,
-    -- Optional link to the Design activity/Permit/Supervision activity
-    -- this task belongs to (migration 0088) -- at most one of the
-    -- three; a task with none is just a generic to-do. Every one of the
-    -- three tracks gets one auto-generated task per selected item the
-    -- moment the project leaves Contract (see project_service.
-    -- _create_service_tasks), and closing the last task linked to an
-    -- item auto-closes that item too (see task_service.set_status ->
-    -- project_service.maybe_auto_close_design_activity/maybe_auto_close_
-    -- permit/maybe_auto_close_supervision_activity).
-    selected_activity_id BIGINT UNSIGNED NULL,
-    selected_permit_id   BIGINT UNSIGNED NULL,
-    selected_supervision_activity_id BIGINT UNSIGNED NULL,
+    -- Optional link to the Design activity / Permit / Supervision activity
+    -- this task belongs to: which kind (linked_stage_type) and which row
+    -- (linked_stage_id in project_selected_activities /
+    -- project_selected_permits / project_selected_supervision_activities).
+    -- A task with none is a generic to-do. One auto-generated task per
+    -- selected item is created when the project leaves Contract, and
+    -- closing an item's last linked task auto-closes the item (see
+    -- project_service / task_service.set_status). No FK: the target table
+    -- depends on linked_stage_type, so integrity is enforced in the
+    -- service layer.
+    linked_stage_type ENUM('Design','Permit','Supervision') NULL,
+    linked_stage_id   BIGINT UNSIGNED NULL,
     -- When work on this task is meant to begin, alongside due_date/
     -- due_time below (when it's meant to be done by) -- always set on
     -- an auto-created service task (the project's own start date);
@@ -1062,18 +1087,12 @@ CREATE TABLE IF NOT EXISTS tasks (
     deleted_at      DATETIME NULL,
     CONSTRAINT fk_tasks_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
     CONSTRAINT fk_tasks_assignee FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_tasks_selected_activity FOREIGN KEY (selected_activity_id)
-        REFERENCES project_selected_activities(id) ON DELETE SET NULL,
-    CONSTRAINT fk_tasks_selected_permit FOREIGN KEY (selected_permit_id)
-        REFERENCES project_selected_permits(id) ON DELETE SET NULL,
-    CONSTRAINT fk_tasks_selected_supervision_activity FOREIGN KEY (selected_supervision_activity_id)
-        REFERENCES project_selected_supervision_activities(id) ON DELETE SET NULL,
     INDEX idx_tasks_project (project_id),
     INDEX idx_tasks_status (status),
     INDEX idx_tasks_assignee (assigned_to),
-    INDEX idx_tasks_selected_activity (selected_activity_id),
-    INDEX idx_tasks_selected_permit (selected_permit_id),
-    INDEX idx_tasks_selected_supervision_activity (selected_supervision_activity_id)
+    INDEX idx_tasks_linked_stage (linked_stage_type, linked_stage_id),
+    INDEX idx_tasks_deleted_status (deleted_at, status),
+    INDEX idx_tasks_deleted_due_date (deleted_at, due_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -1094,7 +1113,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     link_query          JSON NULL,
     CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_notifications_user (user_id),
-    INDEX idx_notifications_user_read (user_id, `read`)
+    -- Unread/read lists newest-first (notification_service.list_for_user).
+    INDEX idx_notifications_user_read (user_id, `read`, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS message_templates (
@@ -1124,7 +1144,8 @@ CREATE TABLE IF NOT EXISTS message_log (
     CONSTRAINT fk_message_log_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_message_log_template FOREIGN KEY (template_id) REFERENCES message_templates(id) ON DELETE SET NULL,
     CONSTRAINT fk_message_log_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
-    INDEX idx_message_log_client (client_id)
+    INDEX idx_message_log_client (client_id),
+    INDEX idx_message_log_sent_at (sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Files attached to an Email-channel message_log row (migration 0098)
@@ -1247,6 +1268,43 @@ INSERT INTO government_forms (authority_id, form_code, title, version, language,
 ((SELECT id FROM government_authorities WHERE name = 'Kuwait Fire Service Directorate'), 'KFD-PERMIT', 'Fire Safety Approval Application', 'v1.0', 'English / Arabic', 'Fire Safety Approval',
  'Application to the Kuwait Fire Service Directorate for approval of the project''s fire and life safety systems.',
  '["Architectural Drawings","Fire System Drawings","Material Safety Data Sheets"]', '[]', 'Active');
+
+-- GF-29: the Arabic Design & Licensing Agreement contract submitted to
+-- Kuwait Municipality's Engineering Licensing Department. Its template is
+-- filled from project data ({{date}}, {{companyName}}, ...).
+INSERT INTO government_forms (authority_id, form_code, title, version, language, category, description, required_documents, template, service_tags, status) VALUES
+((SELECT id FROM government_authorities WHERE name = 'Kuwait Municipality'), 'GF-29',
+ 'Design & Licensing Agreement Contract (Kuwait Municipality – Arabic)', 'v1.0', 'Arabic', 'Agreement',
+ 'Arabic-language agreement contract between the engineering office and the property owner, submitted to Kuwait Municipality’s Engineering Licensing Department, covering design and licensing services and the plot’s Area/Sector/Block/Parcel details.',
+ '[]',
+ 'التاريخ: {{date}}
+
+السادة / بلدية الكويت - إدارة التراخيص الهندسية المحترمين
+
+تحية طيبة وبعد،،،
+
+الموضوع: عقد الإتفاق
+
+بالاشارة الى الموضوع اعلاه تم الاتفاق بين كلا من:
+
+الطرف الأول: مكتب/ {{companyName}}
+الطرف الثاني: السادة / {{clientName}}
+
+على أن يقوم الطرف الأول بأعمال التصميم والترخيص للمشروع لدى الجهات المختصة، وذلك حسب المواصفات التي تم اختيارها من قبل المالك وحسب قوانين البلدية، وعليه يتم تمثيل المالك امام كافة الجهات المخولة لترخيص البناء المذكور، وتكون الأتعاب المالية خارج هذا العقد.
+
+تفاصيل الموقع:
+منطقة: {{plotArea}}
+قطاع: {{plotSector}}
+قطعة: {{plotBlock}}
+قسيمة: {{plotParcel}}
+
+وتفضلوا بقبول فائق الإحترام ،،
+
+طرف أول (المكتب الهندسي): {{companyName}}          التوقيع: ………………
+طرف ثاني (مالك العقار): {{clientName}}          التوقيع: ………………
+
+الجهة التنظيمية: بلدية الكويت',
+ '[]', 'Active');
 
 -- Map each permit type to its authority and form (migration 0109), so a
 -- planned permit can start its application with nothing to choose.

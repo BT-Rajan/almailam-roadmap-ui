@@ -1062,8 +1062,8 @@ def check_and_notify_payment_reminders(db: Session, today: date | None = None) -
     way active_obligations excludes them in get_financial_summary, since
     neither represents money still expected to arrive.
 
-    Called periodically by the background scheduler (see main.py's
-    lifespan), but is itself a plain, directly-callable function --
+    Called daily by the staleness-checks job (see
+    app/jobs/staleness_checks.py), but is itself a plain, directly-callable function --
     deliberately not scheduling logic of its own, so the actual
     due-date arithmetic can be tested without waiting on a real clock.
     `today` is only ever overridden by tests; production calls always

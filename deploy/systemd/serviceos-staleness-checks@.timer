@@ -1,0 +1,13 @@
+# Runs serviceos-staleness-checks@%i.service once a day, just after
+# midnight Kuwait time -- the checks work in Kuwait-local dates (see
+# app/core/kuwait_time.py), whatever the server's own timezone is.
+[Unit]
+Description=Daily ServiceOS staleness checks (%i)
+
+[Timer]
+OnCalendar=*-*-* 00:15:00 Asia/Kuwait
+# If the server was off at that time, run once when it comes back.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

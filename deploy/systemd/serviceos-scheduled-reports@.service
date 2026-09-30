@@ -1,0 +1,25 @@
+# Scheduled-report worker for one ServiceOS instance. The instance name is
+# the directory under /apps, same as install.sh's instances:
+#   serviceos-scheduled-reports@serviceos.service     (dev)
+#   serviceos-scheduled-reports@alhadi-test.service   (test)
+# Exactly one per instance, independent of the API's pm2 process(es).
+[Unit]
+Description=ServiceOS scheduled-report worker (%i)
+Wants=network-online.target
+After=network-online.target mariadb.service mysql.service
+
+[Service]
+Type=simple
+# backend/.env is read relative to the working directory, same as the API.
+WorkingDirectory=/apps/%i/backend
+ExecStart=/apps/%i/backend/venv/bin/python -m app.jobs.scheduled_reports_worker
+Environment=PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=10
+# SIGTERM lets the cycle in progress finish (a report may be mid-send);
+# after the timeout systemd kills the whole unit, so nothing is left behind.
+KillSignal=SIGTERM
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

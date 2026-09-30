@@ -49,7 +49,18 @@ def list_log(
 ):
     client_id = client_service.parse_client_id(clientId) if clientId else None
     entries = message_service.list_log(db, client_id, projectId)
-    return [_message_log_out(db, e) for e in entries]
+    # Two batched lookups for the whole log, not two queries per entry.
+    project_nos = message_service.project_nos_for(db, {e.project_id for e in entries if e.project_id is not None})
+    attachments = message_service.attachments_by_entry(db, [e.id for e in entries])
+    return [
+        MessageLogEntryOut.from_model(
+            e,
+            message_service.client_display_id(e.client_id),
+            project_nos.get(e.project_id) if e.project_id is not None else None,
+            [MessageAttachmentOut.from_model(a) for a in attachments[e.id]],
+        )
+        for e in entries
+    ]
 
 
 @router.post("/send", response_model=MessageLogEntryOut, status_code=201)

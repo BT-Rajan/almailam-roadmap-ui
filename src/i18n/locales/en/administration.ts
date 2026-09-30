@@ -617,7 +617,7 @@ export default {
     monthlyNote: '(monthly)',
     activityName: 'Activity name',
     fixedCost: 'Fixed cost',
-    invalidCost: 'Cost must be zero or a positive number.',
+    invalidCost: 'Enter a cost greater than 0 KWD.',
     removeActivity: 'Remove activity',
     noActivitiesYet: 'No activities yet — add one below.',
     prerequisites: 'Prerequisites',
