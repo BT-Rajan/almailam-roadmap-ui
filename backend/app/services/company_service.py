@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ValidationAppError
@@ -19,11 +20,18 @@ def get_settings(db: Session) -> CompanySettings:
     if settings is None:
         # First run: create the single settings row with the model's
         # defaults so the admin page always has something sensible to show
-        # and edit, rather than a permanent empty state.
-        settings = CompanySettings(id=1)
-        db.add(settings)
-        db.commit()
-        db.refresh(settings)
+        # and edit, rather than a permanent empty state. Two requests (in
+        # different API workers) can both get here on a fresh install;
+        # the loser's insert hits the primary key, and the winner's row
+        # is just as good -- same approach as role_service._ensure_seeded.
+        try:
+            settings = CompanySettings(id=1)
+            db.add(settings)
+            db.commit()
+            db.refresh(settings)
+        except IntegrityError:
+            db.rollback()
+            settings = db.query(CompanySettings).filter(CompanySettings.id == 1).one()
     return settings
 
 

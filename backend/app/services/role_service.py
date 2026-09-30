@@ -8,14 +8,17 @@ installs keep behaving exactly the same until an admin changes something.
 
 has_permission() is called on essentially every protected request (see
 api.deps.require_permission and search_service's per-category checks),
-so results are cached in-process after the first DB read and the cache
-is invalidated on every write -- avoids turning a single global search
-into ten extra queries while still picking up admin changes immediately
-within this process. Multi-worker deployments each keep their own cache;
-since this is a rarely-changed admin setting (not a hot data path), a
-worker briefly serving a stale permission until its next cache miss is
-an acceptable tradeoff against querying the DB on every single request.
+so results are cached in-process after the first DB read -- avoids
+turning a single global search into ten extra queries. A write here
+clears this process's cache at once. The API runs as several worker
+processes (install.sh), each with its own cache that a write in another
+worker can't reach, so the cache is also re-read after CACHE_TTL_SECONDS:
+an admin's change reaches every worker within that time, at the cost of
+one small query per worker per interval.
 """
+
+import time
+
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -27,8 +30,11 @@ from app.services import audit_service
 
 ENTITY_TYPE = "ROLE_DEFINITION"
 
+CACHE_TTL_SECONDS = 10
+
 # role -> module -> {view, edit, delete}, or None until first load/write.
 _CACHE: dict[str, dict[str, dict[str, bool]]] | None = None
+_CACHE_LOADED_AT = 0.0
 
 
 def _invalidate_cache() -> None:
@@ -158,8 +164,8 @@ def _get_definition(db: Session, role: str) -> RoleDefinition:
 
 
 def _load_cache(db: Session) -> dict[str, dict[str, dict[str, bool]]]:
-    global _CACHE
-    if _CACHE is not None:
+    global _CACHE, _CACHE_LOADED_AT
+    if _CACHE is not None and time.monotonic() - _CACHE_LOADED_AT < CACHE_TTL_SECONDS:
         return _CACHE
     _ensure_seeded(db)
     cache: dict[str, dict[str, dict[str, bool]]] = {}
@@ -169,6 +175,7 @@ def _load_cache(db: Session) -> dict[str, dict[str, dict[str, bool]]]:
             for perm in definition.permissions
         }
     _CACHE = cache
+    _CACHE_LOADED_AT = time.monotonic()
     return cache
 
 
