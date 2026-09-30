@@ -1,6 +1,7 @@
+import re
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, String
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, String, event
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -42,6 +43,11 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     company_name: Mapped[str] = mapped_column(String(200), nullable=False)
     contact_person: Mapped[str] = mapped_column(String(120), nullable=False)
     mobile: Mapped[str] = mapped_column(String(30), nullable=False)
+    # `mobile` with everything but digits removed, kept in step by the
+    # listener below. Numbers are typed in mixed formats (spaces, dashes,
+    # +965), so the duplicate check matches on this indexed column instead
+    # of normalising every client's number in Python.
+    mobile_digits: Mapped[str] = mapped_column(String(30), nullable=False, default="")
     email: Mapped[str] = mapped_column(String(120), nullable=False)
     city: Mapped[str] = mapped_column(String(80), nullable=False)
     status: Mapped[str] = mapped_column(
@@ -212,3 +218,7 @@ class ClientDocumentVersion(Base):
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_size_bytes: Mapped[int] = mapped_column(nullable=False, default=0)
 
+
+@event.listens_for(Client.mobile, "set")
+def _sync_mobile_digits(target: Client, value: str | None, _old, _initiator) -> None:
+    target.mobile_digits = re.sub(r"\D", "", value or "")

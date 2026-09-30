@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationAppError
@@ -65,18 +66,19 @@ def create_system_event(
     return event
 
 
-def get_last_stage_event(db: Session, project_id: int) -> ProjectTimelineEvent | None:
-    """Used by project_service.check_and_notify_stale_projects() to
-    determine how long a project has sat on its current stage -- kept
-    here rather than having project_service query ProjectTimelineEvent
-    directly, consistent with this module already owning all timeline-
-    event queries."""
-    return (
-        db.query(ProjectTimelineEvent)
-        .filter(ProjectTimelineEvent.project_id == project_id, ProjectTimelineEvent.type == "stage")
-        .order_by(ProjectTimelineEvent.created_at.desc())
-        .first()
+def last_stage_event_times(db: Session, project_ids: set[int]) -> dict[int, datetime]:
+    """When each project's stage last changed, for many projects in one
+    query -- used by project_service.check_and_notify_stale_projects().
+    Projects with no stage event are absent."""
+    if not project_ids:
+        return {}
+    rows = (
+        db.query(ProjectTimelineEvent.project_id, func.max(ProjectTimelineEvent.created_at))
+        .filter(ProjectTimelineEvent.project_id.in_(project_ids), ProjectTimelineEvent.type == "stage")
+        .group_by(ProjectTimelineEvent.project_id)
+        .all()
     )
+    return {project_id: last_at for project_id, last_at in rows}
 
 
 def create_event(db: Session, project_no: str, payload, actor_id: int) -> ProjectTimelineEvent:

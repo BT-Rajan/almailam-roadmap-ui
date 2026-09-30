@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.database import get_db
 from app.core.file_storage import resolve_path
+from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.schemas.common import PagedResponse
 from app.schemas.message import (
     MessageAttachmentOut,
     MessageLogEntryOut,
@@ -43,16 +45,19 @@ def create_template(payload: MessageTemplateCreate, db: Session = Depends(get_db
     return MessageTemplateOut.from_model(message_service.create_template(db, payload))
 
 
-@router.get("/log", response_model=list[MessageLogEntryOut])
+@router.get("/log", response_model=PagedResponse[MessageLogEntryOut])
 def list_log(
     clientId: str | None = None,
     projectId: str | None = None,
+    page: int = Query(default=1, ge=1),
+    pageSize: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: Session = Depends(get_db),
     _=Depends(can_view),
 ):
     client_id = client_service.parse_client_id(clientId) if clientId else None
-    entries = message_service.list_log(db, client_id, projectId)
-    # Two batched lookups for the whole log, not two queries per entry.
+    result = message_service.list_log(db, client_id, projectId, page, pageSize)
+    entries = result["items"]
+    # Batched lookups for the page, not queries per entry.
     project_ids = {e.project_id for e in entries if e.project_id is not None}
     project_nos = message_service.project_nos_for(db, project_ids)
     project_names = message_service.project_names_for(db, project_ids)
@@ -67,7 +72,8 @@ def list_log(
         )
         row.projectName = project_names.get(e.project_id) if e.project_id is not None else None
         out.append(row)
-    return out
+    result["items"] = out
+    return result
 
 
 @router.post("/send", response_model=MessageLogEntryOut, status_code=201)

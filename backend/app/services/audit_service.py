@@ -72,7 +72,7 @@ def get_last_event_time(db: Session, entity_type: str, entity_id: int, event_lab
     or None if it's never happened. Used by staleness checks (see
     client_service.check_and_notify_stale_onboarding,
     project_service.check_and_notify_stale_projects's sibling
-    timeline_service.get_last_stage_event) that need "how long has this
+    timeline_service.last_stage_event_times) that need "how long has this
     genuinely sat since it last moved," not just when the record itself
     was created."""
     row = db.execute(

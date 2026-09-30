@@ -1,5 +1,6 @@
 import { apiClient, asError } from '@/services/httpClient'
 import type { MessageLogEntry, MessageTemplate, SendEmailPayload, SendMessagePayload } from '@/types/Message'
+import type { PagedResponse } from '@/types/Pagination'
 
 /**
  * Fetch all message templates from backend API
@@ -14,11 +15,12 @@ async function getTemplates(): Promise<MessageTemplate[]> {
 }
 
 /**
- * Fetch message log/history from backend API
+ * One page of the message log, newest first. The log only grows, so it is
+ * never fetched whole.
  */
-async function getMessageLog(): Promise<MessageLogEntry[]> {
+async function getMessageLog(page = 1, pageSize = 25): Promise<PagedResponse<MessageLogEntry>> {
   try {
-    return await apiClient.get<MessageLogEntry[]>('/api/messages/log')
+    return await apiClient.get<PagedResponse<MessageLogEntry>>(`/api/messages/log?page=${page}&pageSize=${pageSize}`)
   } catch (error) {
     console.error('Failed to fetch message log:', error)
     throw asError(error, 'Failed to fetch log')

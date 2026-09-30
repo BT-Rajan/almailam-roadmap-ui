@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.file_storage import resolve_path, save_upload
 from app.models.message import MessageAttachment, MessageLogEntry, MessageTemplate
@@ -47,14 +48,36 @@ def create_template(db: Session, payload) -> MessageTemplate:
     return template
 
 
-def list_log(db: Session, client_id: int | None = None, project_no: str | None = None) -> list[MessageLogEntry]:
+def list_log(
+    db: Session,
+    client_id: int | None = None,
+    project_no: str | None = None,
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> dict:
+    """One page of the message log, newest first -- the full history
+    only grows, so it is never returned in one go."""
     query = db.query(MessageLogEntry)
     if client_id is not None:
         query = query.filter(MessageLogEntry.client_id == client_id)
     if project_no:
         project = db.query(Project).filter(Project.project_no == project_no).first()
         query = query.filter(MessageLogEntry.project_id == (project.id if project else -1))
-    return query.order_by(MessageLogEntry.sent_at.desc()).all()
+    total = query.count()
+    page_size = max(1, min(page_size, MAX_PAGE_SIZE))
+    items = (
+        query.order_by(MessageLogEntry.sent_at.desc(), MessageLogEntry.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "pageSize": page_size,
+        "totalPages": (total + page_size - 1) // page_size,
+    }
 
 
 def send_message(db: Session, payload) -> MessageLogEntry:

@@ -5,6 +5,7 @@ import { useClientStore } from '@/stores/clientStore'
 import { useProjectStore } from '@/stores/projectStore'
 import type { Client } from '@/types/Client'
 import type { MessageChannel, MessageLogEntry, MessageTemplate, SendEmailPayload, SendMessagePayload } from '@/types/Message'
+import type { PagedResponse } from '@/types/Pagination'
 import type { Project } from '@/types/Project'
 import { triggerBlobDownload } from '@/utils/fileDownload'
 import { describeStoreError } from '@/utils/storeError'
@@ -12,6 +13,7 @@ import { describeStoreError } from '@/utils/storeError'
 interface MessageCentreStoreState {
   templates: MessageTemplate[]
   log: MessageLogEntry[]
+  logPagination: { page: number; pageSize: number; total: number; totalPages: number }
   isLoading: boolean
   isSending: boolean
   error: string | undefined
@@ -24,6 +26,7 @@ export const useMessageCentreStore = defineStore('messageCentre', {
   state: (): MessageCentreStoreState => ({
     templates: [],
     log: [],
+    logPagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 },
     isLoading: false,
     isSending: false,
     error: undefined,
@@ -101,15 +104,30 @@ export const useMessageCentreStore = defineStore('messageCentre', {
         const clientStore = useClientStore()
         const [templates, log] = await Promise.all([
           messageService.getTemplates(),
-          messageService.getMessageLog(),
+          messageService.getMessageLog(1, this.logPagination.pageSize),
           !clientStore.isFullyLoaded ? clientStore.loadClients() : Promise.resolve(),
         ])
         this.templates = templates
-        this.log = log
+        this.applyLogPage(log)
       } catch (error) {
         this.error = describeStoreError('Unable to load the Message Centre. Please try again.', error)
       } finally {
         this.isLoading = false
+      }
+    },
+
+    applyLogPage(result: PagedResponse<MessageLogEntry>) {
+      this.log = result.items
+      this.logPagination = { page: result.page, pageSize: result.pageSize, total: result.total, totalPages: result.totalPages }
+    },
+
+    // The log is paged on the server: it only grows, so it is never
+    // downloaded whole.
+    async loadLogPage(page: number, pageSize?: number) {
+      try {
+        this.applyLogPage(await messageService.getMessageLog(page, pageSize ?? this.logPagination.pageSize))
+      } catch (error) {
+        this.error = describeStoreError('Unable to load the message log. Please try again.', error)
       }
     },
 
@@ -140,7 +158,7 @@ export const useMessageCentreStore = defineStore('messageCentre', {
       this.isSending = true
       try {
         const entry = await messageService.sendMessage(payload)
-        this.log = [entry, ...this.log]
+        void this.loadLogPage(1)
         return entry
       } finally {
         this.isSending = false
@@ -152,13 +170,13 @@ export const useMessageCentreStore = defineStore('messageCentre', {
     // on the backend (see message_service.send_email), but the backend
     // also raises alongside logging it, so this call rejects too -- the
     // compose dialog's own catch block surfaces the error toast, and the
-    // failed entry shows up in this.log on the next loadAll rather than
+    // failed entry shows up in this.log on the next page load rather than
     // being spliced in here.
     async sendEmail(payload: SendEmailPayload): Promise<MessageLogEntry> {
       this.isSending = true
       try {
         const entry = await messageService.sendEmail(payload)
-        this.log = [entry, ...this.log]
+        void this.loadLogPage(1)
         return entry
       } finally {
         this.isSending = false
