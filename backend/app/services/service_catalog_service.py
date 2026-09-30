@@ -242,11 +242,19 @@ def remove_service(db: Session, service_raw_id: str, user_id: int) -> None:
     db.commit()
 
 
+def _assert_cost_positive(fixed_cost) -> None:
+    # Every activity is billable: a 0 KWD activity would put a free line
+    # into quotations and payment plans.
+    if fixed_cost is None or fixed_cost <= 0:
+        raise ValidationAppError("Fixed cost must be greater than 0 KWD.")
+
+
 def add_activity(db: Session, service_raw_id: str, name: str, fixed_cost, user_id: int) -> ServiceCatalogActivity:
     service = get_service(db, service_raw_id)
     clean_name = name.strip()
     if not clean_name:
         raise ValidationAppError("Activity name is required.")
+    _assert_cost_positive(fixed_cost)
     activity = ServiceCatalogActivity(service_id=service.id, name=clean_name, fixed_cost=fixed_cost)
     db.add(activity)
     db.flush()
@@ -269,6 +277,7 @@ def update_activity(
             raise ValidationAppError("Activity name is required.")
         activity.name = clean_name
     if fixed_cost is not None:
+        _assert_cost_positive(fixed_cost)
         activity.fixed_cost = fixed_cost
     audit_service.log_event(
         db, ENTITY_TYPE, activity.service_id, "Activity updated", user_id,

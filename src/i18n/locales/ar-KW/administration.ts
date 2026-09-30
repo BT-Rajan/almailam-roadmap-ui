@@ -599,7 +599,7 @@ export default {
     monthlyNote: '(شهري)',
     activityName: 'اسم النشاط',
     fixedCost: 'التكلفة الثابتة',
-    invalidCost: 'يجب أن تكون التكلفة صفراً أو رقماً موجباً.',
+    invalidCost: 'أدخل تكلفة أكبر من 0 د.ك.',
     removeActivity: 'إزالة النشاط',
     noActivitiesYet: 'لا توجد أنشطة بعد — أضف واحدًا أدناه.',
     prerequisites: 'المتطلبات المسبقة',

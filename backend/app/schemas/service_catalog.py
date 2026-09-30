@@ -44,12 +44,15 @@ class ServiceCatalogItemUpdate(BaseModel):
 
 class ServiceCatalogActivityCreate(BaseModel):
     name: str = Field(min_length=1, max_length=150)
-    fixedCost: condecimal(ge=0, max_digits=12, decimal_places=2) = Field(default=0)  # type: ignore[valid-type]
+    # Required; must be > 0 KWD. Checked in service_catalog_service
+    # (_assert_cost_positive) rather than here, so 0 and negatives get the
+    # same clear message.
+    fixedCost: condecimal(max_digits=12, decimal_places=2)  # type: ignore[valid-type]
 
 
 class ServiceCatalogActivityUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=150)
-    fixedCost: condecimal(ge=0, max_digits=12, decimal_places=2) | None = None  # type: ignore[valid-type]
+    fixedCost: condecimal(max_digits=12, decimal_places=2) | None = None  # type: ignore[valid-type]  # > 0, see create
 
 
 class SupervisionPrerequisiteOut(BaseModel):

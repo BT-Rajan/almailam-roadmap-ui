@@ -92,15 +92,14 @@ async function removePrerequisite(activity: ServiceCatalogActivity, prerequisite
 function submitNewActivity(): void {
   if (newActivityName.value.trim().length === 0) return
   const cost = Number(newActivityCost.value)
-  // Mirrors the backend's own ServiceCatalogActivityCreate.fixedCost
-  // (condecimal(ge=0)) -- nothing here checked this before, so a
-  // negative cost typed in by mistake would only ever get caught after
-  // a round trip to the backend.
-  if (newActivityCost.value.trim() !== '' && (!Number.isFinite(cost) || cost < 0)) {
+  // Mirrors the backend (service_catalog_service._assert_cost_positive):
+  // every activity needs a price above 0 KWD. A blank cost used to be
+  // sent as 0.
+  if (!isPositiveCost(newActivityCost.value)) {
     toastStore.show('error', t('administration.serviceCatalog.invalidCost'))
     return
   }
-  emit('add', newActivityName.value.trim(), Number.isFinite(cost) && cost >= 0 ? cost : 0)
+  emit('add', newActivityName.value.trim(), cost)
   newActivityName.value = ''
   newActivityCost.value = ''
 }
@@ -117,10 +116,15 @@ function commitName(activity: ServiceCatalogActivity, value: string): void {
   if (value !== activity.name) emit('update', activity.id, { name: value })
 }
 
+function isPositiveCost(value: string): boolean {
+  const cost = Number(value)
+  return value.trim() !== '' && Number.isFinite(cost) && cost > 0
+}
+
 function commitCost(activity: ServiceCatalogActivity, value: string): void {
   delete costDrafts.value[activity.id]
   const cost = Number(value)
-  if (!Number.isFinite(cost) || cost < 0) {
+  if (!isPositiveCost(value)) {
     toastStore.show('error', t('administration.serviceCatalog.invalidCost'))
     return
   }
@@ -218,7 +222,12 @@ function commitCost(activity: ServiceCatalogActivity, value: string): void {
       <div class="flex flex-col gap-2 sm:flex-row">
         <TextInput v-model="newActivityName" :placeholder="t('administration.serviceCatalog.activityName')" class="sm:flex-1" />
         <TextInput v-model="newActivityCost" type="number" inputmode="decimal" :placeholder="t('administration.serviceCatalog.fixedCost')" class="sm:w-40" />
-        <BaseButton :icon="Plus" variant="secondary" :disabled="newActivityName.trim().length === 0" @click="submitNewActivity">
+        <BaseButton
+          :icon="Plus"
+          variant="secondary"
+          :disabled="newActivityName.trim().length === 0 || newActivityCost.trim() === ''"
+          @click="submitNewActivity"
+        >
           {{ t('administration.serviceCatalog.add') }}
         </BaseButton>
       </div>
