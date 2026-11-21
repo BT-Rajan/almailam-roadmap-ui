@@ -92,6 +92,23 @@ function printPreview(): void {
   printWindow.print()
 }
 
+async function downloadDocx(): Promise<void> {
+  if (!props.form) return
+  downloadError.value = ''
+  isDownloading.value = true
+  try {
+    const blob = await governmentFormService.renderDocx(props.form.id, {
+      context: { ...contextValues },
+      title: props.form.title,
+    })
+    triggerBlobDownload(blob, `${props.form.formCode}.docx`)
+  } catch (error) {
+    downloadError.value = error instanceof Error ? error.message : t('government.formPreviewDialog.downloadWordFailed')
+  } finally {
+    isDownloading.value = false
+  }
+}
+
 async function downloadPdf(): Promise<void> {
   if (!props.form) return
   downloadError.value = ''
@@ -157,6 +174,9 @@ async function downloadPdf(): Promise<void> {
       <BaseButton variant="secondary" :icon="Printer" :disabled="!form.template" @click="printPreview">{{ t('common.print') }}</BaseButton>
       <BaseButton :icon="Download" :disabled="!form.template" :loading="isDownloading" @click="downloadPdf">
         {{ t('government.formPreviewDialog.saveAsPdf') }}
+      </BaseButton>
+      <BaseButton variant="secondary" :icon="Download" :disabled="!form.template" :loading="isDownloading" @click="downloadDocx">
+        {{ t('government.formPreviewDialog.saveAsDocx') }}
       </BaseButton>
     </template>
   </BaseDialog>

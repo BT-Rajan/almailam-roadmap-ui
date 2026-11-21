@@ -98,10 +98,24 @@ async function fillForm(formId: string, input: FormFillInput): Promise<ProjectDo
  * documentService.downloadDocument, since apiClient only parses JSON.
  */
 async function renderPdf(formId: string, input: { context: Record<string, string>; title?: string }): Promise<Blob> {
+  return renderFormFile(formId, 'render-pdf', 'PDF', input)
+}
+
+/** The Word (.docx) counterpart to renderPdf -- same template, same layout. */
+async function renderDocx(formId: string, input: { context: Record<string, string>; title?: string }): Promise<Blob> {
+  return renderFormFile(formId, 'render-docx', 'Word', input)
+}
+
+async function renderFormFile(
+  formId: string,
+  endpoint: 'render-pdf' | 'render-docx',
+  label: string,
+  input: { context: Record<string, string>; title?: string },
+): Promise<Blob> {
   const authStore = useAuthStore()
 
   const doRequest = () =>
-    fetch(`/api/government/forms/${formId}/render-pdf`, {
+    fetch(`/api/government/forms/${formId}/${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -120,13 +134,13 @@ async function renderPdf(formId: string, input: { context: Record<string, string
     }
 
     if (!response.ok) {
-      throw new Error(`PDF generation failed with status ${response.status}`)
+      throw new Error(`${label} generation failed with status ${response.status}`)
     }
 
     return await response.blob()
   } catch (error) {
-    console.error(`Failed to render PDF for form ${formId}:`, error)
-    throw asError(error, 'Failed to generate PDF')
+    console.error(`Failed to render ${label} for form ${formId}:`, error)
+    throw asError(error, `Failed to generate ${label}`)
   }
 }
 
@@ -223,6 +237,7 @@ export const governmentFormService = {
   deleteForm,
   fillForm,
   renderPdf,
+  renderDocx,
   uploadSampleFile,
   setFormStatus,
   createAuthority,

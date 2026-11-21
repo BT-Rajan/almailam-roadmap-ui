@@ -60,6 +60,19 @@ def _render_and_save_pdf(db: Session, project: Project, form: GovernmentForm, fi
     )
 
 
+def render_entry_docx(db: Session, project: Project, entry_id: int) -> tuple[bytes, str]:
+    """A filled form entry as an editable .docx, regenerated from its saved
+    field values and the form's current template. The filed Document stays the
+    PDF of record; this is the Word copy for anyone who needs to edit it. The
+    letter layout matches the PDF (see pdf_render.render_agreement_docx)."""
+    entry = get_project_form_entry(db, project.id, entry_id)
+    form = government_service.get_form(db, entry.form_id)
+    if not form.template:
+        raise ValidationAppError("This form has no template to fill in.")
+    rendered_body = pdf_render.render_template(form.template, entry.field_values or {})
+    return pdf_render.render_agreement_docx(form.title, rendered_body), form.title
+
+
 def create_project_form_entry(
     db: Session, project: Project, form_id: int, field_values: dict[str, str], actor_id: int | None
 ) -> ProjectFormEntry:

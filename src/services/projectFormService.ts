@@ -33,10 +33,16 @@ async function deleteEntry(projectId: string, entryId: string): Promise<void> {
   await apiClient.delete<void>(`/api/projects/${projectId}/form-entries/${entryId}`)
 }
 
+/** The entry as an editable Word file, regenerated from its saved values (see the backend route). */
+async function downloadEntryDocx(projectId: string, entryId: string): Promise<Blob> {
+  return apiClient.getBlob(`/api/projects/${projectId}/form-entries/${entryId}/docx`)
+}
+
 export const projectFormService = {
   getEntries,
   createEntry,
   updateEntry,
   setEntryStatus,
   deleteEntry,
+  downloadEntryDocx,
 }

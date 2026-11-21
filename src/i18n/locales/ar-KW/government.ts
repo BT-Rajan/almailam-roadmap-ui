@@ -74,6 +74,7 @@ export default {
   },
 
   authorityFormsPanel: {
+    downloadWord: 'تنزيل Word (.docx)',
     noFillableFormsTitle: 'لا توجد نماذج قابلة للتعبئة لهذه الجهة بعد',
     noFillableFormsDescription: 'أضف نموذجاً بمحتوى قالب ضمن الإدارة > المستندات > النماذج الحكومية لإتاحته هنا.',
     addAForm: 'إضافة نموذج',
@@ -326,6 +327,8 @@ export default {
     fillInTheDetails: 'تعبئة التفاصيل',
     preview: 'معاينة',
     saveAsPdf: 'حفظ كـ PDF',
+    saveAsDocx: 'حفظ كـ Word',
+    downloadWordFailed: 'تعذّر إنشاء مستند Word',
   },
 
   newSubmissionDialog: {

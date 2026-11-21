@@ -417,6 +417,7 @@ export default {
     fileUnderAuthority: 'الحفظ تحت الجهة',
     standardFormsCount: 'النماذج القياسية ({count})',
     alreadyAdded: 'مُضاف مسبقاً',
+    alreadyAddedUpdate: 'مُضاف مسبقاً · حدد الخانة لتحديثه بأحدث نص وحقول',
     addForms: 'إضافة نموذج | إضافة {count} نموذج | إضافة {count} نماذج',
   },
 

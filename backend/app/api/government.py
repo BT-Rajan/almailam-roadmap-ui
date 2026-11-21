@@ -167,6 +167,25 @@ def render_form_pdf(
     )
 
 
+@router.post("/forms/{form_id}/render-docx")
+def render_form_docx(
+    form_id: str,
+    payload: FormRenderPdfRequest,
+    db: Session = Depends(get_db),
+    _=Depends(can_view),
+):
+    """The Word counterpart to /render-pdf above: same template, same
+    letter layout, downloadable as .docx. Nothing saved."""
+    docx_bytes, _title = government_service.render_docx(
+        db, government_service.parse_form_id(form_id), payload
+    )
+    return StreamingResponse(
+        io.BytesIO(docx_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=form.docx"},
+    )
+
+
 @router.patch("/forms/{form_id}/status", response_model=FormOut)
 def set_form_status(
     form_id: str,

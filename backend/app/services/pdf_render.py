@@ -1,4 +1,4 @@
-"""Renders a GovernmentForm's {{token}} template into a real PDF file.
+"""Renders a GovernmentForm's {{token}} template into a real PDF or DOCX file.
 
 Mirrors src/utils/governmentFormHelpers.ts's renderGovernmentFormTemplate
 exactly (same {{token}} syntax, same placeholder for a missing value) so a
@@ -19,11 +19,24 @@ as invisible boxes ("tofu") rather than raise an error. Noto Naskh Arabic
 (SIL Open Font License, see assets/fonts/NotoNaskhArabic-OFL.txt) is
 bundled here and referenced by an explicit file:// @font-face rule so
 rendering is correct regardless of what's installed system-wide.
+
+Layout follows the reference letters the engineering office issues to
+Kuwait Municipality (A4, RTL, 12pt, date top-right, underlined centred
+subject, justified body, dotted-leader field lines, bold closing line,
+two-party signature row). The same parsed block list (letter_blocks)
+drives both the PDF and the DOCX renderers, so the two outputs share their
+spacing and alignment.
 """
 
+import io
 import re
 from pathlib import Path
 
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Cm, Pt
 from weasyprint import HTML
 
 from app.core.exceptions import ValidationAppError
@@ -32,6 +45,29 @@ _TOKEN_RE = re.compile(r"{{\s*(\w+)\s*}}", re.UNICODE)
 _MISSING_PLACEHOLDER = "………………"
 
 FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoNaskhArabic-Regular.ttf"
+
+# Letter geometry, taken from the reference letters (A4). Top is slightly
+# tighter than the bottom because the letterhead sits above the date line.
+PAGE_MARGIN_CM = {"top": 1.6, "right": 2.54, "bottom": 2.54, "left": 2.54}
+# The reference letters are set in Univers Next Arabic. That font is not
+# bundled, so the DOCX names it (Word uses it where installed) and the PDF
+# uses the bundled Noto Naskh Arabic instead.
+DOCX_FONT_NAME = "Univers Next Arabic"
+
+# Line roles, matched on the start of each line (after stripping). Order in
+# _line_role matters: a dotted field line like "السيد/ ......" is a field,
+# not an addressee, so fields are checked before addressees.
+_DATE_PREFIXES = ("التاريخ", "الكويت في", "Date")
+_SUBJECT_PREFIXES = ("الموضوع", "Subject")
+_ADDRESSEE_PREFIXES = ("السيد", "السادة", "Dear")
+_SALUTATION_PREFIXES = ("تحية طيبة",)
+_CLOSING_PREFIXES = ("وتفضلوا", "وهذا إقرار", "Yours")
+_SIGNATURE_MARKERS = (("طرف أول", "طرف ثاني"), ("First Party", "Second Party"))
+_FIELD_RE = re.compile(r"^[^.…:/]{1,40}?\s*[:/]\s*\S")
+# Field lines are short "label: value" / "label / value" lines. Checked on the
+# rendered text, so a filled value like "منطقة / السالمية" still counts.
+_FIELD_MAX_LENGTH = 90
+_MULTI_SPACE_RE = re.compile(r"\s{3,}")
 
 
 def extract_tokens(template: str) -> list[str]:
@@ -90,28 +126,73 @@ def render_template(template: str, context: dict[str, str | None]) -> str:
     return _TOKEN_RE.sub(_replace, template)
 
 
-def _paragraphs_html(body_text: str) -> str:
-    """Blank-line-separated paragraphs, single newlines within a paragraph
-    become <br> -- matches how the template text is authored (see
-    standardGovernmentForms.ts's seed templates) and how the client-side
-    preview already displays it (a whitespace-pre-wrap <pre> block)."""
-    paragraphs = [p for p in body_text.split("\n\n")]
-    return "".join(
-        f"<p>{_escape_html(paragraph).replace(chr(10), '<br/>')}</p>"
-        for paragraph in paragraphs
-        if paragraph.strip()
-    )
+def _line_role(line: str) -> str:
+    if line.startswith(_DATE_PREFIXES):
+        return "date"
+    if line.startswith(_SUBJECT_PREFIXES):
+        return "subject"
+    if any(first in line and second in line for first, second in _SIGNATURE_MARKERS) and _MULTI_SPACE_RE.search(line):
+        return "signature"
+    if line.startswith(_ADDRESSEE_PREFIXES):
+        return "addressee"
+    if line.startswith(_SALUTATION_PREFIXES):
+        return "salutation"
+    if line.startswith(_CLOSING_PREFIXES):
+        return "closing"
+    if len(line) <= _FIELD_MAX_LENGTH and _FIELD_RE.match(line):
+        return "field"
+    return "body"
+
+
+def letter_blocks(body_text: str) -> list[tuple[str, str]]:
+    """Splits a rendered body into (role, text) blocks in document order.
+
+    Blank lines separate paragraphs, as the templates are authored. Within a
+    paragraph, consecutive body lines stay one block (joined by line breaks),
+    while every other line becomes its own block so it can take its own
+    alignment and spacing -- a dotted field line, a subject, a closing."""
+    blocks: list[tuple[str, str]] = []
+    for paragraph in body_text.split("\n\n"):
+        pending_body: list[str] = []
+        for raw_line in paragraph.split("\n"):
+            line = raw_line.strip()
+            if not line:
+                continue
+            role = _line_role(line)
+            if role == "body":
+                pending_body.append(line)
+                continue
+            if pending_body:
+                blocks.append(("body", "\n".join(pending_body)))
+                pending_body = []
+            blocks.append((role, line))
+        if pending_body:
+            blocks.append(("body", "\n".join(pending_body)))
+    return blocks
 
 
 def _escape_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def _block_html(role: str, text: str) -> str:
+    if role == "signature":
+        parts = [part.strip() for part in _MULTI_SPACE_RE.split(text) if part.strip()]
+        cells = "".join(f"<span>{_escape_html(part)}</span>" for part in parts)
+        return f'<div class="signature-row">{cells}</div>'
+    body = _escape_html(text).replace("\n", "<br/>")
+    return f'<p class="{role}">{body}</p>'
+
+
 def render_agreement_pdf(title: str, body_text: str) -> bytes:
-    """Renders a filled form's title + merged body into a print-ready PDF,
-    RTL by default (every template in this app so far is Arabic or
-    Arabic-primary bilingual; direction is a document-wide CSS property
-    here, not per-run, since WeasyPrint has no live language detection)."""
+    """Renders a filled form into a print-ready PDF in the reference-letter
+    layout (see module docstring). The title is shown as a heading only when
+    the body has no subject line of its own, so letters don't carry a second
+    title above their own "الموضوع" line."""
+    blocks = letter_blocks(body_text)
+    has_subject = any(role == "subject" for role, _ in blocks)
+    title_html = "" if has_subject else f'<h1 class="title">{_escape_html(title)}</h1>'
+    blocks_html = "".join(_block_html(role, text) for role, text in blocks)
     html = f"""<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -121,26 +202,120 @@ def render_agreement_pdf(title: str, body_text: str) -> bytes:
     font-family: 'NotoNaskhArabic';
     src: url('file://{FONT_PATH}');
   }}
-  @page {{ size: A4; margin: 2.5cm 2cm; }}
+  @page {{
+    size: A4;
+    margin: {PAGE_MARGIN_CM["top"]}cm {PAGE_MARGIN_CM["right"]}cm {PAGE_MARGIN_CM["bottom"]}cm {PAGE_MARGIN_CM["left"]}cm;
+  }}
   body {{
     font-family: 'NotoNaskhArabic', sans-serif;
     direction: rtl;
     text-align: right;
-    font-size: 13pt;
-    line-height: 1.9;
+    font-size: 12pt;
+    line-height: 1.6;
     color: #1a1a2e;
   }}
-  h1 {{
-    font-size: 16pt;
-    text-align: center;
-    margin: 0 0 1.5em;
-  }}
-  p {{ margin: 0 0 1em; white-space: pre-wrap; }}
+  h1.title {{ font-size: 14pt; text-align: center; font-weight: bold; margin: 0 0 1em; }}
+  p {{ margin: 0 0 0.5em; }}
+  p.date {{ margin-bottom: 0.9em; }}
+  p.addressee {{ font-weight: bold; margin: 0; }}
+  p.salutation {{ font-weight: bold; margin: 0.9em 0 1em; }}
+  p.subject {{ text-align: center; font-weight: bold; text-decoration: underline; margin: 1em 0 1.2em; }}
+  p.body {{ text-align: justify; margin-bottom: 0.9em; }}
+  p.field {{ line-height: 2.1; margin: 0; }}
+  p.closing {{ text-align: center; font-weight: bold; margin: 1.4em 0 1.6em; }}
+  .signature-row {{ display: flex; justify-content: space-between; margin: 0.9em 0; }}
 </style>
 </head>
 <body>
-<h1>{_escape_html(title)}</h1>
-{_paragraphs_html(body_text)}
+{title_html}
+{blocks_html}
 </body>
 </html>"""
     return HTML(string=html).write_pdf()
+
+
+def _docx_paragraph(container, role: str, text: str):
+    paragraph = container.add_paragraph()
+    # w:bidi has to come before spacing/alignment in the paragraph XML, so it
+    # is added first; python-docx then inserts the later properties in order.
+    paragraph._p.get_or_add_pPr().append(OxmlElement("w:bidi"))
+    paragraph_format = paragraph.paragraph_format
+    paragraph_format.space_before = Pt(0)
+    paragraph_format.space_after = Pt(0)
+    if role == "body":
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        paragraph_format.line_spacing = 1.5
+        paragraph_format.space_after = Pt(9)
+    elif role == "field":
+        paragraph_format.line_spacing = 2.0
+    elif role == "date":
+        paragraph_format.space_after = Pt(9)
+    elif role == "salutation":
+        paragraph_format.space_before = Pt(9)
+        paragraph_format.space_after = Pt(12)
+    elif role == "subject":
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph_format.space_before = Pt(12)
+        paragraph_format.space_after = Pt(12)
+    elif role == "closing":
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph_format.space_before = Pt(14)
+        paragraph_format.space_after = Pt(16)
+    elif role == "title":
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph_format.space_after = Pt(12)
+
+    lines = text.split("\n")
+    for index, line in enumerate(lines):
+        run = paragraph.add_run(line)
+        run.bold = role in ("addressee", "salutation", "subject", "closing", "title")
+        run.underline = role == "subject"
+        if role == "title":
+            run.font.size = Pt(14)
+        if index < len(lines) - 1:
+            run.add_break()
+    return paragraph
+
+
+def _docx_signature_row(document, text: str) -> None:
+    parts = [part.strip() for part in _MULTI_SPACE_RE.split(text) if part.strip()]
+    table = document.add_table(rows=1, cols=len(parts))
+    for cell, part in zip(table.rows[0].cells, parts):
+        cell_paragraph = cell.paragraphs[0]
+        cell_paragraph._p.get_or_add_pPr().append(OxmlElement("w:bidi"))
+        run = cell_paragraph.add_run(part)
+        run.bold = False
+
+
+def render_agreement_docx(title: str, body_text: str) -> bytes:
+    """The same letter layout as render_agreement_pdf, as an editable .docx:
+    A4 with the reference letters' margins, right-to-left paragraphs, and the
+    same block roles and spacing (see letter_blocks)."""
+    document = Document()
+    section = document.sections[0]
+    section.page_width = Cm(21.0)
+    section.page_height = Cm(29.7)
+    section.top_margin = Cm(PAGE_MARGIN_CM["top"])
+    section.bottom_margin = Cm(PAGE_MARGIN_CM["bottom"])
+    section.left_margin = Cm(PAGE_MARGIN_CM["left"])
+    section.right_margin = Cm(PAGE_MARGIN_CM["right"])
+
+    normal = document.styles["Normal"]
+    normal.font.name = DOCX_FONT_NAME
+    normal.font.size = Pt(12)
+    rpr_fonts = normal.element.get_or_add_rPr().get_or_add_rFonts()
+    for attribute in ("w:ascii", "w:hAnsi", "w:cs"):
+        rpr_fonts.set(qn(attribute), DOCX_FONT_NAME)
+
+    blocks = letter_blocks(body_text)
+    if not any(role == "subject" for role, _ in blocks):
+        _docx_paragraph(document, "title", title)
+    for role, text in blocks:
+        if role == "signature":
+            _docx_signature_row(document, text)
+        else:
+            _docx_paragraph(document, role, text)
+
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()

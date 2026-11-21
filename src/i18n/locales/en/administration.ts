@@ -435,6 +435,7 @@ export default {
     fileUnderAuthority: 'File Under Authority',
     standardFormsCount: 'Standard Forms ({count})',
     alreadyAdded: 'Already added',
+    alreadyAddedUpdate: 'Already added · tick to update to the latest text and fields',
     addForms: 'Add Form | Add {count} Form | Add {count} Forms',
   },
 

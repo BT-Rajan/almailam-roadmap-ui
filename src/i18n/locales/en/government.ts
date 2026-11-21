@@ -79,6 +79,7 @@ export default {
   },
 
   authorityFormsPanel: {
+    downloadWord: 'Download Word (.docx)',
     noFillableFormsTitle: 'No fillable forms for this authority yet',
     noFillableFormsDescription: 'Add a form with template content under Administration > Documents > Government Forms to make it available here.',
     addAForm: 'Add a Form',
@@ -340,6 +341,8 @@ export default {
     fillInTheDetails: 'Fill in the details',
     preview: 'Preview',
     saveAsPdf: 'Save as PDF',
+    saveAsDocx: 'Save as Word',
+    downloadWordFailed: 'Failed to generate Word document',
   },
 
   newSubmissionDialog: {

@@ -241,6 +241,18 @@ def render_pdf(db: Session, form_id: int, payload) -> tuple[bytes, str]:
     return pdf_bytes, title
 
 
+def render_docx(db: Session, form_id: int, payload) -> tuple[bytes, str]:
+    """The .docx counterpart to render_pdf above: the same template, context
+    and letter layout, as an editable Word file. Nothing persisted."""
+    form = get_form(db, form_id)
+    if not form.template:
+        raise ValidationAppError("This form has no template to fill in.")
+
+    rendered_body = pdf_render.render_template(form.template, payload.context)
+    title = (payload.title or form.title).strip() or form.title
+    return pdf_render.render_agreement_docx(title, rendered_body), title
+
+
 def set_form_status(db: Session, form_id: int, status: str, actor_id: int) -> GovernmentForm:
     form = get_form(db, form_id)
     audit_service.log_event(

@@ -93,19 +93,14 @@ function handleImport(): void {
             <div
               v-for="form in availableForms"
               :key="form.formCode"
-              class="flex items-start gap-2.5 rounded-md px-2 py-2"
-              :class="form.alreadyAdded ? 'opacity-50' : 'hover:bg-bg-hover'"
+              class="flex items-start gap-2.5 rounded-md px-2 py-2 hover:bg-bg-hover"
             >
-              <Checkbox
-                :model-value="selectedFormCodes.includes(form.formCode)"
-                :disabled="form.alreadyAdded"
-                @update:model-value="toggle(form.formCode)"
-              />
+              <Checkbox :model-value="selectedFormCodes.includes(form.formCode)" @update:model-value="toggle(form.formCode)" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-text-secondary">{{ form.title }}</p>
                 <p class="text-xs text-text-muted">
                   {{ form.formCode }} · {{ form.category }}
-                  <span v-if="form.alreadyAdded"> · {{ t('administration.loadStandardFormsDialog.alreadyAdded') }}</span>
+                  <span v-if="form.alreadyAdded"> · {{ t('administration.loadStandardFormsDialog.alreadyAddedUpdate') }}</span>
                 </p>
               </div>
             </div>

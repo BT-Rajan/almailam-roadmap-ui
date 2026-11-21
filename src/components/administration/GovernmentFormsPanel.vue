@@ -204,7 +204,30 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
   isImporting.value = true
   try {
     const seeds = STANDARD_GOVERNMENT_FORMS.filter((seed) => payload.formCodes.includes(seed.formCode))
+    const today = new Date().toISOString().slice(0, 10)
     for (const seed of seeds) {
+      const existing = store.forms.find((form) => form.formCode === seed.formCode)
+      if (existing) {
+        // Already on file: refresh the standard text, fields and title, but
+        // keep what this office has set on the record itself (status,
+        // service tags, version, authority, reference copy).
+        await store.updateForm(existing.id, {
+          authorityId: existing.authorityId,
+          formCode: existing.formCode,
+          title: seed.title,
+          version: existing.version,
+          language: seed.language,
+          category: seed.category,
+          description: seed.description,
+          requiredDocuments: existing.requiredDocuments,
+          lastUpdated: today,
+          status: existing.status,
+          template: seed.template,
+          serviceTags: existing.serviceTags,
+          fields: seed.fields ?? [],
+        })
+        continue
+      }
       await store.createForm({
         authorityId: payload.authorityId,
         formCode: seed.formCode,
@@ -214,11 +237,11 @@ async function importStandardForms(payload: { authorityId: string; formCodes: st
         category: seed.category,
         description: seed.description,
         requiredDocuments: [],
-        lastUpdated: new Date().toISOString().slice(0, 10),
+        lastUpdated: today,
         status: 'Active',
         template: seed.template,
         serviceTags: [],
-        fields: [],
+        fields: seed.fields ?? [],
       })
     }
     toastStore.show(

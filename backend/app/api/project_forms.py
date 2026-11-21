@@ -1,4 +1,7 @@
+import io
+
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
@@ -34,6 +37,23 @@ def _entry_out(db: Session, entry) -> ProjectFormEntryOut:
 def list_form_entries(project_no: str, db: Session = Depends(get_db), _=Depends(can_view_project)):
     project = project_service.get_project(db, project_no)
     return [_entry_out(db, e) for e in project_form_service.list_project_form_entries(db, project.id)]
+
+
+@router.get("/api/projects/{project_no}/form-entries/{entry_id}/docx")
+def download_form_entry_docx(
+    project_no: str, entry_id: str, db: Session = Depends(get_db), _=Depends(can_view_project)
+):
+    """The Word copy of a filed form entry (see project_form_service.render_entry_docx).
+    Gated by view: it reads the entry and writes nothing."""
+    project = project_service.get_project(db, project_no)
+    docx_bytes, title = project_form_service.render_entry_docx(
+        db, project, project_form_service.parse_entry_id(entry_id)
+    )
+    return StreamingResponse(
+        io.BytesIO(docx_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{title}.docx"'},
+    )
 
 
 @router.post("/api/projects/{project_no}/form-entries", response_model=ProjectFormEntryOut, status_code=201)

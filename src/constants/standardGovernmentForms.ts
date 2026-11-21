@@ -1,4 +1,4 @@
-import type { GovernmentFormCategory, GovernmentFormLanguage } from '@/types/Government'
+import type { GovernmentFormCategory, GovernmentFormField, GovernmentFormLanguage } from '@/types/Government'
 
 // Starter library of the government/legal forms the engineering office
 // routinely issues to clients (design agreements, building-license
@@ -14,11 +14,26 @@ interface StandardGovernmentFormSeed {
   language: GovernmentFormLanguage
   description: string
   template: string
+  // Fill-in fields for the template's own tokens (see GovernmentFormField).
+  // Forms without any get none, same as before this was added.
+  fields?: GovernmentFormField[]
 }
 
 const SIGNATURE_BLOCK = `First Party (Engineering Office): {{companyName}}, signature: ………………
 Second Party (Property Owner): {{clientName}}, signature: ………………
 Date: {{date}}`
+
+// Plot/parcel details the municipality letters ask for, as listed on the
+// Form Mapping document. Tokens are used in each template below; the owner
+// is typed in per filing rather than taken from the client record.
+const PLOT_FIELDS: GovernmentFormField[] = [
+  { token: 'areaName', label: 'Area Name', type: 'text', options: [] },
+  { token: 'plotArea', label: 'Plot Area', type: 'text', options: [] },
+  { token: 'plotNumber', label: 'Plot Number', type: 'text', options: [] },
+  { token: 'parcelNumber', label: 'Parcel Number', type: 'text', options: [] },
+  { token: 'ownerName', label: "Owner's Name", type: 'text', options: [] },
+]
+const GOVERNORATE_FIELD: GovernmentFormField = { token: 'governorate', label: 'Governorate', type: 'text', options: [] }
 
 export const STANDARD_GOVERNMENT_FORMS: StandardGovernmentFormSeed[] = [
   {
@@ -145,11 +160,31 @@ ${SIGNATURE_BLOCK}`,
     category: 'Legal Undertaking',
     language: 'Arabic',
     description: 'Undertaking regarding the safety and correctness of the structural design for the project.',
-    template: `Structural Design Undertaking
+    fields: PLOT_FIELDS,
+    template: `التاريخ : {{date}}
 
-{{companyName}} undertakes that the structural design prepared for "{{projectName}}" at {{projectAddress}} meets all applicable structural safety codes and standards, and takes full responsibility for the structural calculations submitted.
+السادة / بلدية الكويت – إدارة التراخيص الهندسية المحترمين
 
-${SIGNATURE_BLOCK}`,
+تحية طيبة وبعد،،،
+
+الموضوع: تعهد تصميم إنشائي
+
+المكتب الهندسي: {{companyName}} (طرف أول)
+
+المالك/ {{ownerName}} (طرف ثاني)
+
+منطقة / {{areaName}}
+قطاع / {{plotArea}}
+قطعة / {{plotNumber}}
+قسيمة / {{parcelNumber}}
+
+اتفق الطرفان على الآتي: -
+
+حيث تم التصميم على مسؤولية المكتب، ونخلي طرف البلدية من أدنى مسؤولية تجاه التصميم الإنشائي هذا، وليس لدى المالك مانعا من التنفيذ تحت اشراف مكتب هندسي.
+
+وتفضلوا بقبول فائق الإحترام ،،
+
+طرف أول: {{companyName}}                                    طرف ثاني: {{ownerName}}`,
   },
   {
     formCode: 'GF-11',
@@ -237,15 +272,37 @@ ${SIGNATURE_BLOCK}`,
   },
   {
     formCode: 'GF-18',
-    title: 'Undertaking to Preserve Services (underground utilities)',
+    title: 'Undertaking to Maintain Utilities and Services',
     category: 'Legal Undertaking',
     language: 'Arabic',
-    description: 'Undertaking to preserve existing underground utility services during construction.',
-    template: `Undertaking to Preserve Underground Utility Services
+    description: 'Undertaking to maintain the underground utility services (electricity, telephone, sewage) serving the plot during construction.',
+    fields: [...PLOT_FIELDS, GOVERNORATE_FIELD],
+    template: `التاريخ: {{date}}
 
-I, {{clientName}}, undertake to preserve all existing underground utility services (water, electricity, telephone, sewage) at {{projectAddress}} ("{{projectName}}") during excavation and construction, and to bear responsibility for any damage caused to them.
+السادة/ بلدية الكويت – إدارة التراخيص الهندسية المحترمين،،،
 
-${SIGNATURE_BLOCK}`,
+تحية طيبة وبعد،،،
+
+الموضوع: تعهد المحافظة على الخدمات
+
+اتعهد نحن الموقعين أدناه:
+
+مالك القسيمة: {{ownerName}}
+المحافظة: {{governorate}}
+المنطقة: {{areaName}}
+القطاع: {{plotArea}}
+القطعة: {{plotNumber}}
+القسيمة: {{parcelNumber}}
+
+بأن احافظ على الخدمات تحت أرضية ( كهرباء – هاتف – مجاري ) جهة شارع الخدمة التي تصل منها الى قسيمتى وذلك تحت اشراف مكتب هندسي مرخص يقوم بعمل التدعيمات اللازمه بحيث لا يحدث لها ضرر أو تلف.
+
+كما اتعهد بتحمل المسؤولية كاملة في حال حدوث أي ضرر أو تلف لهذه الخدمات مع تحملي لكافة التكاليف الخاصة بتصليحها وعدم المطالبة بالتعويض عنها.
+
+وفي حالة مخالفتي لما ورد بهذا التعهد يكون للبلدية الحق في القيام بجميع الإصلاحات والترميمات اللازمة وذلك على نفقتي الخاصة.
+
+وهذا إقرار وتعهد مني بما تقدم،،،
+
+طرف أول: {{companyName}}                                    طرف ثاني: {{ownerName}}`,
   },
   {
     formCode: 'GF-19',
@@ -333,15 +390,31 @@ ${SIGNATURE_BLOCK}`,
   },
   {
     formCode: 'GF-26',
-    title: 'Undertaking on the Validity of Documents and Signatures',
+    title: 'Undertaking for the Accuracy of Information and Signatures',
     category: 'Legal Undertaking',
     language: 'Arabic',
-    description: 'Undertaking confirming the validity and authenticity of all documents and signatures submitted.',
-    template: `Undertaking on the Validity of Documents and Signatures
+    description: 'Undertaking that the information, documents and signatures submitted for the plot are accurate and valid.',
+    fields: [...PLOT_FIELDS, GOVERNORATE_FIELD],
+    template: `الكويت في: {{date}}
 
-I, {{clientName}}, undertake that all documents and signatures submitted in connection with "{{projectName}}" at {{projectAddress}} are valid, authentic, and legally binding, and accept full responsibility for any forgery or misrepresentation.
+السيد/ مدير إدارة الانظمة الهندسية المحترم،،،
 
-${SIGNATURE_BLOCK}`,
+تحية طيبة وبعد،،،
+
+الموضوع: تعهد صحة البيانات والتواقيع للقسيمة رقم ({{parcelNumber}}) قطعة رقم ({{plotNumber}}) بمنطقة {{areaName}}
+
+بالإشارة الى الموضوع المذكور أعلاه، نتعهد نحن مكتب/ {{companyName}} الهندسية ومالك العقار السيد/ {{ownerName}} ، بصحة البيانات والمستندات والتواقيع الخاصة بالقسيمة المذكورة اعلاه، ونخلي طرف البلدية تجاه ذلك.
+
+المحافظة: {{governorate}}
+المنطقة: {{areaName}}
+القطاع: {{plotArea}}
+القطعة: {{plotNumber}}
+القسيمة: {{parcelNumber}}
+المالك: {{ownerName}}
+
+وتفضلوا بقبول فائق الإحترام والتقدير،،،
+
+طرف أول: {{companyName}}                                    طرف ثاني: {{ownerName}}`,
   },
   {
     formCode: 'GF-27',
@@ -371,11 +444,12 @@ ${SIGNATURE_BLOCK}`,
   },
   {
     formCode: 'GF-29',
-    title: 'Design & Licensing Agreement Contract (Kuwait Municipality – Arabic)',
+    title: 'Contract Agreement',
     category: 'Agreement',
     language: 'Arabic',
     description:
       'Arabic-language agreement contract between the engineering office and the property owner, submitted to Kuwait Municipality’s Engineering Licensing Department, covering design and licensing services and the plot’s Area/Sector/Block/Parcel details.',
+    fields: PLOT_FIELDS,
     template: `التاريخ: {{date}}
 
 السادة / بلدية الكويت - إدارة التراخيص الهندسية المحترمين
@@ -387,21 +461,44 @@ ${SIGNATURE_BLOCK}`,
 بالاشارة الى الموضوع اعلاه تم الاتفاق بين كلا من:
 
 الطرف الأول: مكتب/ {{companyName}}
-الطرف الثاني: السادة / {{clientName}}
+الطرف الثاني: السادة / {{ownerName}}
 
 على أن يقوم الطرف الأول بأعمال التصميم والترخيص للمشروع لدى الجهات المختصة، وذلك حسب المواصفات التي تم اختيارها من قبل المالك وحسب قوانين البلدية، وعليه يتم تمثيل المالك امام كافة الجهات المخولة لترخيص البناء المذكور، وتكون الأتعاب المالية خارج هذا العقد.
 
 تفاصيل الموقع:
-منطقة: {{plotArea}}
-قطاع: {{plotSector}}
-قطعة: {{plotBlock}}
-قسيمة: {{plotParcel}}
+منطقة: {{areaName}}
+قطاع: {{plotArea}}
+قطعة: {{plotNumber}}
+قسيمة: {{parcelNumber}}
 
 وتفضلوا بقبول فائق الإحترام ،،
 
 طرف أول (المكتب الهندسي): {{companyName}}          التوقيع: ………………
-طرف ثاني (مالك العقار): {{clientName}}          التوقيع: ………………
+طرف ثاني (مالك العقار): {{ownerName}}          التوقيع: ………………
 
 الجهة التنظيمية: بلدية الكويت`,
+  },
+  {
+    formCode: 'GF-30',
+    title: 'Municipality Authorization',
+    category: 'Legal Undertaking',
+    language: 'Arabic',
+    description: 'Letter authorising the engineering office to carry out all consultancy work on the plot with the Municipality.',
+    fields: PLOT_FIELDS,
+    template: `الكويت في: {{date}}
+
+السيد/ مدير عام بلدية الكويت المحترم،،،
+
+تحية طيبة وبعد،،،
+
+الموضوع: تفويض بلدية
+
+نحيط سيادتكم علماً بأننا قد فوضنا السادة/ مكتب {{companyName}} الهندسية، لمباشرة جميع المهام الإستشارية والكائن بمنطقة ({{areaName}})، قطاع ({{plotArea}})، قطعة ({{plotNumber}})، قسيمة ({{parcelNumber}}) ملك السيد/ {{ownerName}}.
+
+لذا نرجو من سيادتكم التكرم بتقديم المساعدة اللازمة.
+
+وتفضلوا بقبول فائق الإحترام والتقدير،،،
+
+المالك: {{ownerName}}`,
   },
 ]

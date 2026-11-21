@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, Eye, FileEdit, Plus, Printer, Trash2 } from '@lucide/vue'
+import { Download, Eye, FileEdit, FileText, Plus, Printer, Trash2 } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -12,6 +12,7 @@ import SmartTable from '@/components/common/SmartTable.vue'
 import DocumentPreviewDialog from '@/components/document/DocumentPreviewDialog.vue'
 import ProjectFormEntryDialog from '@/components/government/ProjectFormEntryDialog.vue'
 import { documentService } from '@/services/documentService'
+import { projectFormService } from '@/services/projectFormService'
 import { useGovernmentSubmissionStore } from '@/stores/governmentSubmissionStore'
 import { useProjectFormStore } from '@/stores/projectFormStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -187,6 +188,17 @@ async function downloadDocument(entry: ProjectFormEntry): Promise<void> {
   }
 }
 
+// The Word copy is regenerated from the entry's saved values, so it works
+// even though the filed Document itself is the PDF.
+async function downloadWord(entry: ProjectFormEntry): Promise<void> {
+  try {
+    const blob = await projectFormService.downloadEntryDocx(props.projectId, entry.id)
+    triggerBlobDownload(blob, `${entry.formTitle}.docx`)
+  } catch (error) {
+    toastStore.show('error', t('common.downloadFailed'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+  }
+}
+
 async function printDocument(entry: ProjectFormEntry): Promise<void> {
   if (!entry.documentId) return
   try {
@@ -271,6 +283,7 @@ async function confirmDelete(): Promise<void> {
           <div class="flex items-center justify-end gap-1 no-print">
             <IconButton :icon="Eye" :label="t('common.view')" size="sm" variant="ghost" @click="entryById(row.id as string) && viewDocument(entryById(row.id as string)!)" />
             <IconButton :icon="Download" :label="t('common.download')" size="sm" variant="ghost" @click="entryById(row.id as string) && downloadDocument(entryById(row.id as string)!)" />
+            <IconButton :icon="FileText" :label="t('government.authorityFormsPanel.downloadWord')" size="sm" variant="ghost" @click="entryById(row.id as string) && downloadWord(entryById(row.id as string)!)" />
             <IconButton :icon="Printer" :label="t('common.print')" size="sm" variant="ghost" @click="entryById(row.id as string) && printDocument(entryById(row.id as string)!)" />
             <IconButton :icon="FileEdit" :label="t('common.edit')" size="sm" variant="ghost" @click="entryById(row.id as string) && openEditDialog(entryById(row.id as string)!)" />
             <IconButton :icon="Trash2" :label="t('government.authorityFormsPanel.remove')" size="sm" variant="danger" @click="entryById(row.id as string) && requestDelete(entryById(row.id as string)!)" />
