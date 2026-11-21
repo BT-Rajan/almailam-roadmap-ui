@@ -12,6 +12,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import SmartTable from '@/components/common/SmartTable.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { ROUTE_NAMES } from '@/constants/routeNames'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import { useScheduledReportStore } from '@/stores/scheduledReportStore'
 import { useToastStore } from '@/stores/toastStore'
 import { formatDateTime } from '@/utils/dateFormatter'
@@ -38,6 +39,7 @@ interface ScheduleTableRow {
 const { t } = useI18n()
 const scheduledReportStore = useScheduledReportStore()
 const toastStore = useToastStore()
+const resultDialogStore = useResultDialogStore()
 const router = useRouter()
 
 const deleteTarget = ref<ScheduledReport | undefined>(undefined)
@@ -137,13 +139,21 @@ async function handleDelete(): Promise<void> {
   }
 }
 
+// A test send emails the report, so it gets the same blocking result
+// popup as every other email send.
 async function handleSendTest(row: ScheduleTableRow): Promise<void> {
   sendingTestId.value = row.id
   try {
     await scheduledReportStore.sendTestNow(row.id)
-    toastStore.show('success', t('administration.scheduledReportsPage.testSentTitle'), t('administration.scheduledReportsPage.testSentDescription', { name: row.name }))
+    resultDialogStore.showSuccess(
+      t('administration.scheduledReportsPage.testSentTitle'),
+      t('administration.scheduledReportsPage.testSentDescription', { name: row.name }),
+    )
   } catch (error) {
-    toastStore.show('error', t('administration.scheduledReportsPage.testFailedTitle'), error instanceof Error ? error.message : t('common.pleaseTryAgain'))
+    resultDialogStore.showError(
+      t('administration.scheduledReportsPage.testFailedTitle'),
+      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
+    )
   } finally {
     sendingTestId.value = undefined
   }

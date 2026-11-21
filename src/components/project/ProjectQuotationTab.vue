@@ -222,9 +222,11 @@ async function handleSendEmail(): Promise<void> {
   }
 }
 
-// A quotation is finalized (content locked) automatically as the first
-// step of Approve/Reject/Expire, before the decision itself is
-// recorded. No-ops (and doesn't re-finalize) if it already is.
+// Reject/Expire lock the content first (finalize) and then record the
+// decision. Approve does NOT lock here: the quotation stays editable
+// until the client's signed copy is uploaded, and that upload is what
+// finalizes and approves it together (see confirm_quotation_approval).
+// No-ops (and doesn't re-finalize) if it already is.
 async function ensureFinalized(): Promise<boolean> {
   const quotation = quotationStore.selectedQuotation
   if (!quotation) return false
@@ -239,14 +241,13 @@ async function ensureFinalized(): Promise<boolean> {
   }
 }
 
-async function handleApprove(): Promise<void> {
-  if (!(await ensureFinalized())) return
+function handleApprove(): void {
   isApprovalDialogOpen.value = true
 }
 
-async function handleApproveFromMenu(): Promise<void> {
+function handleApproveFromMenu(): void {
   closeDecisionMenu()
-  await handleApprove()
+  handleApprove()
 }
 
 function handleRejectFromMenu(): void {
@@ -295,12 +296,13 @@ async function handlePatch(patch: Partial<Quotation>): Promise<void> {
   }
 }
 
-// Escape hatch for a quotation that got finalized (by Approve/Reject/
-// Expire above) but never actually left Draft -- e.g. the approval
-// dialog was opened but no file was ever confirmed, or the Reject/
-// Expire call itself failed after finalizing. Without this there'd be
-// no way back into editing at all, since the inline Edit button only
-// shows while unfinalized.
+// Escape hatch for a quotation that got finalized (by Reject/Expire
+// above) but never actually left Draft -- e.g. the Reject/Expire call
+// itself failed after finalizing. Without this there'd be no way back
+// into editing at all, since the inline Edit button only shows while
+// unfinalized. Approve doesn't need it: its upload locks and approves
+// in one step, so a cancelled or failed upload leaves the quotation
+// editable.
 async function handleReopenForEditing(): Promise<void> {
   const quotation = quotationStore.selectedQuotation
   if (!quotation) return

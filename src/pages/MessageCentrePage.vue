@@ -18,6 +18,7 @@ import TextArea from '@/components/common/TextArea.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import { useToast } from '@/composables/useToast'
 import { useMessageCentreStore } from '@/stores/messageCentreStore'
+import { useResultDialogStore } from '@/stores/resultDialogStore'
 import type { BadgeVariant } from '@/types/Ui'
 import type { SmartTableColumn } from '@/types/Table'
 import type { MessageChannel } from '@/types/Message'
@@ -52,6 +53,7 @@ const route = useRoute()
 const { t } = useI18n()
 const toast = useToast()
 const store = useMessageCentreStore()
+const resultDialogStore = useResultDialogStore()
 
 const channel = ref<MessageChannel>('Email')
 const templateId = ref<string>('')
@@ -233,11 +235,20 @@ const canSend = computed(() => {
   return true
 })
 
+// Email sends get the blocking result popup (same as the quotation,
+// contract and payment-plan emails); WhatsApp/SMS keep the passive toast.
 async function handleSend(): Promise<void> {
   if (!store.selectedClientId || !canSend.value) return
 
+  const sendingEmail = isEmail.value
+  const successTitle = t('workspace.messageCentrePage.messageSentTitle')
+  const successDescription = t('workspace.messageCentrePage.messageSentDescription', {
+    channel: channel.value,
+    name: store.selectedClient?.contactPerson ?? t('workspace.messageCentrePage.unknownCustomerFallback'),
+  })
+
   try {
-    if (isEmail.value) {
+    if (sendingEmail) {
       await store.sendEmail({
         clientId: store.selectedClientId,
         subject: subject.value.trim(),
@@ -254,19 +265,19 @@ async function handleSend(): Promise<void> {
         projectId: projectId.value || undefined,
       })
     }
-    toast.success(
-      t('workspace.messageCentrePage.messageSentTitle'),
-      t('workspace.messageCentrePage.messageSentDescription', {
-        channel: channel.value,
-        name: store.selectedClient?.contactPerson ?? t('workspace.messageCentrePage.unknownCustomerFallback'),
-      }),
-    )
+    if (sendingEmail) {
+      resultDialogStore.showSuccess(successTitle, successDescription)
+    } else {
+      toast.success(successTitle, successDescription)
+    }
     closeCompose()
   } catch (error) {
-    toast.error(
-      t('workspace.messageCentrePage.couldNotSendMessageTitle'),
-      error instanceof Error ? error.message : t('common.pleaseTryAgain'),
-    )
+    const detail = error instanceof Error ? error.message : t('common.pleaseTryAgain')
+    if (sendingEmail) {
+      resultDialogStore.showError(t('common.failedToSendEmail'), detail)
+    } else {
+      toast.error(t('workspace.messageCentrePage.couldNotSendMessageTitle'), detail)
+    }
   }
 }
 

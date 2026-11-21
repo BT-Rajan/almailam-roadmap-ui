@@ -331,8 +331,21 @@ _STATUS_CHANGE_LABELS = {
 }
 
 
-def set_status(db: Session, quotation_no: str, new_status: str, reason: str | None, user_id: int | None) -> Quotation:
+def set_status(
+    db: Session,
+    quotation_no: str,
+    new_status: str,
+    reason: str | None,
+    user_id: int | None,
+    *,
+    via_signed_upload: bool = False,
+) -> Quotation:
     quotation = get_quotation(db, quotation_no)
+    # Approval is only recorded together with the client's signed copy
+    # (see confirm_quotation_approval). Refusing a bare status change to
+    # Approved here means the generic status PATCH can't skip that step.
+    if new_status == "Approved" and not via_signed_upload:
+        raise ValidationAppError("Approving a quotation needs the client's signed copy uploaded -- use Approve instead.")
     assert_transition_allowed(QUOTATION_ALLOWED_TRANSITIONS, quotation.status, new_status, "quotation")
     if new_status in QUOTATION_STATUSES_REQUIRING_REASON:
         assert_reason_given(reason, f"A reason is required to move the quotation to '{new_status}'.")
@@ -457,6 +470,10 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
     evidence, not a cryptographic proof. Reuses set_status, which
     already triggers project_service.try_auto_advance_stage.
 
+    The content is locked here too, in the same step as the approval:
+    until the signed copy is uploaded the quotation stays an editable
+    Draft, so staff can still correct it before the client signs.
+
     If the project's scope of work hasn't been reconfirmed by the
     client since it was last edited (project.scope_client_confirmed_at
     is None -- see project_service.save_scope_of_work, which clears it
@@ -470,7 +487,7 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
     just reconfirmed it.
     """
     quotation = get_quotation(db, quotation_no)
-    if quotation.status != "Draft" or quotation.finalized_at is None:
+    if quotation.status != "Draft":
         raise ValidationAppError("This quotation isn't awaiting approval.")
     assert_signed_upload(file, SIGNED_PDF_OR_IMAGE_EXTENSIONS)
 
@@ -491,7 +508,11 @@ def confirm_quotation_approval(db: Session, quotation_no: str, file: UploadFile,
         db, ENTITY_TYPE, quotation.id, "Approval document uploaded", user_id, new_value=file.filename,
     )
 
-    quotation = set_status(db, quotation_no, "Approved", None, user_id)
+    if quotation.finalized_at is None:
+        quotation.finalized_at = datetime.now(timezone.utc)
+        audit_service.log_event(db, ENTITY_TYPE, quotation.id, "Quotation finalized", user_id)
+
+    quotation = set_status(db, quotation_no, "Approved", None, user_id, via_signed_upload=True)
 
     notification_service.notify_role(
         db, "Administrator",

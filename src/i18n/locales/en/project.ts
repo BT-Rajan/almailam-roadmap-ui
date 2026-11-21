@@ -304,7 +304,7 @@ export default {
     failedToRevertToDraft: 'Failed to move quotation back to Draft',
     approvalDialog: {
       title: 'Approve Quotation',
-      description: "Upload a scan or photo of the client's physically signed copy to confirm their approval of the quotation.",
+      description: "Upload a scan or photo of the client's physically signed copy to confirm their approval of the quotation. Uploading it approves the quotation and locks its content; until then it stays editable.",
       uploadHint: 'PDF, JPG or JPEG',
       failedToConfirm: 'Failed to confirm approval',
       approvedTitle: 'Quotation approved',
